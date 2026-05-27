@@ -1,0 +1,21 @@
+{
+  "roots": [
+    "hal"
+  ],
+  "packages": [
+    {
+      "name": "hal",
+      "version": "1.0.0",
+      "dependencies": [
+        "path"
+      ],
+      "devDependencies": []
+    },
+    {
+      "name": "path",
+      "version": "1.9.1",
+      "dependencies": []
+    }
+  ],
+  "configVersion": 1
+}

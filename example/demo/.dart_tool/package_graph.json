@@ -1,0 +1,28 @@
+{
+  "roots": [
+    "demo"
+  ],
+  "packages": [
+    {
+      "name": "demo",
+      "version": "0.1.0",
+      "dependencies": [
+        "hal"
+      ],
+      "devDependencies": []
+    },
+    {
+      "name": "hal",
+      "version": "1.0.0",
+      "dependencies": [
+        "path"
+      ]
+    },
+    {
+      "name": "path",
+      "version": "1.9.1",
+      "dependencies": []
+    }
+  ],
+  "configVersion": 1
+}
