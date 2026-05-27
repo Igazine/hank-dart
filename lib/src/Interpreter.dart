@@ -43,6 +43,12 @@ class Interpreter implements ExecutionContext {
         if (stmt is AssignExpr) {
            if (stmt.value is FuncDefExpr) {
              scope.set(stmt.name, _evalInScope(stmt.value, scope));
+           } else if (stmt.value is AssignExpr) {
+             // Handle nested macro assignments for hoisting
+             var inner = stmt.value as AssignExpr;
+             if (inner.value is FuncDefExpr) {
+               scope.set(inner.name, _evalInScope(inner.value, scope));
+             }
            }
         }
       }

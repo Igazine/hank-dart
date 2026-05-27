@@ -11,11 +11,29 @@ class Parser {
 
   Expr parse() {
     _skipNewlines();
-    if (_peek().type == TokenType.LParen) {
-      return _parseFuncDef();
-    } else {
-      return _parseStatement();
+    List<Expr> stmts = [];
+    
+    while (!_isEof()) {
+      _skipNewlines();
+      if (_isEof()) break;
+      
+      // If we see ( and it's a func def, it might be the main task
+      if (_peek().type == TokenType.LParen && _isFuncDefStart()) {
+        Expr func = _parseFuncDef();
+        if (stmts.isEmpty) {
+          // If it's the only thing, return it directly (canonical HAL)
+          _skipNewlines();
+          if (_isEof()) return func;
+        }
+        stmts.add(func);
+      } else {
+        stmts.add(_parseStatement());
+      }
+      _skipNewlines();
     }
+
+    if (stmts.length == 1) return stmts[0];
+    return BlockExpr(stmts, stmts.isNotEmpty ? stmts[0].td : TokenData.empty());
   }
 
   Expr _parseStatement() {
@@ -173,7 +191,7 @@ class Parser {
       case TokenType.Caret:
         _consume(TokenType.Caret);
         Expr val;
-        if (!_isEof() && ![TokenType.Newline, TokenType.RBrace, TokenType.RBracket, TokenType.Comma].contains(_peek().type)) {
+        if (!_isEof() && ![TokenType.Newline, TokenType.RBrace, TokenType.RBracket, TokenType.Comma, TokenType.RParen].contains(_peek().type)) {
            val = _parseExpression();
         } else {
            val = LiteralExpr(Value.voidVal(), td);
@@ -185,7 +203,7 @@ class Parser {
         expr = UnOpExpr('!', _parsePrimary(), td);
         break;
       default:
-        throw _error('Unexpected token: ${t.type}');
+        throw _error('Unexpected token: ${t.type} (${t.literal})');
     }
 
     return _finishPrimary(expr);
@@ -330,6 +348,7 @@ class Parser {
   }
 
   String _parseStringLiteral(String lit) {
+    if (lit.length < 2) return lit;
     return lit.substring(1, lit.length - 1)
         .replaceAll('\\n', '\n')
         .replaceAll('\\r', '\r')
@@ -375,7 +394,7 @@ class Parser {
   Token _peek() => tokens[pos];
 
   void _skipNewlines() {
-    while (tokens[pos].type == TokenType.Newline) {
+    while (pos < tokens.length && tokens[pos].type == TokenType.Newline) {
       pos++;
     }
   }
