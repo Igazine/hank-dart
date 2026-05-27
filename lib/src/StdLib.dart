@@ -55,6 +55,34 @@ class StdLib {
       }
     }
 
+    bool halEquals(Value a, Value b) {
+      if (a.type != b.type) return false;
+      switch (a.type) {
+        case ValueType.Void: return true;
+        case ValueType.Number: return a.value == b.value;
+        case ValueType.String: return a.value == b.value;
+        case ValueType.Array:
+          List<Value> l1 = a.value;
+          List<Value> l2 = b.value;
+          if (l1.length != l2.length) return false;
+          for (int i = 0; i < l1.length; i++) {
+            if (!halEquals(l1[i], l2[i])) return false;
+          }
+          return true;
+        case ValueType.Object:
+          Map<String, Value> m1 = a.value;
+          Map<String, Value> m2 = b.value;
+          if (m1.length != m2.length) return false;
+          for (var key in m1.keys) {
+            if (!m2.containsKey(key) || !halEquals(m1[key]!, m2[key]!)) return false;
+          }
+          return true;
+        case ValueType.Opaque:
+          return a.label == b.label && a.value == b.value;
+        default: return false;
+      }
+    }
+
     return {
       'log': {
         'print': (args, ctx) { print(args.map(valToString).join(' ')); return Value.voidVal(); },
@@ -94,7 +122,7 @@ class StdLib {
         'div': (args, ctx) => (args.length < 2 || (args[1].value as double) == 0) ? Value.voidVal() : Value.number((args[0].value as double) / (args[1].value as double)),
         'gt': (args, ctx) => (args.length < 2) ? Value.voidVal() : ((args[0].value as double) > (args[1].value as double) ? Value.number(1.0) : Value.voidVal()),
         'lt': (args, ctx) => (args.length < 2) ? Value.voidVal() : ((args[0].value as double) < (args[1].value as double) ? Value.number(1.0) : Value.voidVal()),
-        'eq': (args, ctx) => (args.length < 2) ? Value.voidVal() : (valToString(args[0]) == valToString(args[1]) ? Value.number(1.0) : Value.voidVal()),
+        'eq': (args, ctx) => (args.length < 2) ? Value.voidVal() : (halEquals(args[0], args[1]) ? Value.number(1.0) : Value.voidVal()),
       },
       'logic': {
         'and': (args, ctx) {
@@ -112,6 +140,7 @@ class StdLib {
           }
           return Value.voidVal();
         },
+        'eq': (args, ctx) => (args.length < 2) ? Value.voidVal() : (halEquals(args[0], args[1]) ? Value.number(1.0) : Value.voidVal()),
       },
       'arr': {
         'length': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Array) ? Value.number((args[0].value as List).length.toDouble()) : Value.voidVal(),
