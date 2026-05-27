@@ -29,6 +29,17 @@ class StdLib {
       return Value.voidVal();
     }
 
+    bool hasOpaque(Value v) {
+      if (v.type == ValueType.Opaque) return true;
+      if (v.type == ValueType.Array) {
+        return (v.value as List<Value>).any(hasOpaque);
+      }
+      if (v.type == ValueType.Object) {
+        return (v.value as Map<String, Value>).values.any(hasOpaque);
+      }
+      return false;
+    }
+
     dynamic mapHalToAny(Value v) {
       switch (v.type) {
         case ValueType.Number: return v.value as double;
@@ -54,7 +65,7 @@ class StdLib {
         'halt': (args, ctx) {
           int code = 0;
           if (args.length > 0 && args[0].type == ValueType.Number) code = (args[0].value as double).toInt();
-          throw Exception('HAL_HALT:$code'); // Demo app should catch this
+          throw Exception('HAL_HALT:$code');
         },
         'elapsedTime': (args, ctx) => Value.number(0.0),
       },
@@ -148,7 +159,15 @@ class StdLib {
             return Value.voidVal();
           }
         },
-        'stringify': (args, ctx) => (args.isNotEmpty) ? Value.string(jsonEncode(mapHalToAny(args[0]))) : Value.voidVal(),
+        'stringify': (args, ctx) {
+          if (args.isEmpty) return Value.voidVal();
+          if (hasOpaque(args[0])) return Value.voidVal();
+          try {
+            return Value.string(jsonEncode(mapHalToAny(args[0])));
+          } catch (e) {
+            return Value.voidVal();
+          }
+        },
       },
       'regex': {
         'parse': (args, ctx) {
@@ -159,10 +178,9 @@ class StdLib {
           bool multiLine = flags.contains('m');
           try {
             return Value(
-              type: ValueType.Regex,
-              pattern: pattern,
-              flags: flags,
-              engine: RegExp(pattern, caseSensitive: !caseInsensitive, multiLine: multiLine),
+              type: ValueType.Opaque,
+              label: 'RegExp',
+              value: RegExp(pattern, caseSensitive: !caseInsensitive, multiLine: multiLine),
             );
           } catch (e) { return Value.voidVal(); }
         },
@@ -170,8 +188,8 @@ class StdLib {
           if (args.length < 2) return Value.voidVal();
           String s = valToString(args[0]);
           Value p = args[1];
-          if (p.type == ValueType.Regex) {
-            return (p.engine?.hasMatch(s) ?? false) ? Value.number(1.0) : Value.voidVal();
+          if (p.type == ValueType.Opaque && p.label == 'RegExp') {
+            return (p.value as RegExp).hasMatch(s) ? Value.number(1.0) : Value.voidVal();
           }
           return s.contains(valToString(p)) ? Value.number(1.0) : Value.voidVal();
         },
@@ -180,8 +198,8 @@ class StdLib {
           String s = valToString(args[0]);
           Value p = args[1];
           String r = valToString(args[2]);
-          if (p.type == ValueType.Regex && p.engine != null) {
-            return Value.string(s.replaceAll(p.engine!, r));
+          if (p.type == ValueType.Opaque && p.label == 'RegExp') {
+            return Value.string(s.replaceAll(p.value as RegExp, r));
           }
           return Value.string(s.replaceAll(valToString(p), r));
         },

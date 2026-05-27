@@ -17,11 +17,9 @@ class Parser {
       _skipNewlines();
       if (_isEof()) break;
       
-      // If we see ( and it's a func def, it might be the main task
       if (_peek().type == TokenType.LParen && _isFuncDefStart()) {
         Expr func = _parseFuncDef();
         if (stmts.isEmpty) {
-          // If it's the only thing, return it directly (canonical HAL)
           _skipNewlines();
           if (_isEof()) return func;
         }
@@ -155,10 +153,6 @@ class Parser {
       case TokenType.String:
         expr = LiteralExpr(Value.string(_parseStringLiteral(t.literal)), td);
         _consume(TokenType.String);
-        break;
-      case TokenType.Regex:
-        expr = LiteralExpr(_parseRegexLiteral(t.literal), td);
-        _consume(TokenType.Regex);
         break;
       case TokenType.Identifier:
         expr = IdentExpr(t.literal, false, td);
@@ -355,22 +349,6 @@ class Parser {
         .replaceAll('\\t', '\t')
         .replaceAll('\\"', '"')
         .replaceAll("\\'", "'");
-  }
-
-  Value _parseRegexLiteral(String lit) {
-    int lastSlash = lit.lastIndexOf('/');
-    String pattern = lit.substring(1, lastSlash);
-    String flags = lit.substring(lastSlash + 1);
-    
-    bool caseInsensitive = flags.contains('i');
-    bool multiLine = flags.contains('m');
-
-    return Value(
-      type: ValueType.Regex,
-      pattern: pattern,
-      flags: flags,
-      engine: RegExp(pattern, caseSensitive: !caseInsensitive, multiLine: multiLine),
-    );
   }
 
   String _consumeIdentifier() {

@@ -6,24 +6,20 @@ enum ValueType {
   String,
   Array,
   Object,
-  Regex,
+  Opaque,
   Task
 }
 
 class Value {
   final ValueType type;
   final dynamic value;
-  final String? pattern; // For Regex
-  final String? flags;   // For Regex
-  final RegExp? engine;   // For Regex
+  final String? label;   // For Opaque
   final TaskValue? task;  // For Task
 
   Value({
     required this.type,
     this.value,
-    this.pattern,
-    this.flags,
-    this.engine,
+    this.label,
     this.task,
   });
 
@@ -38,7 +34,7 @@ class Value {
       case ValueType.Void: return 'null';
       case ValueType.Array: return '[Array]';
       case ValueType.Object: return '{Object}';
-      case ValueType.Regex: return '[Regex]';
+      case ValueType.Opaque: return '[Opaque:${label ?? 'Unknown'}]';
       case ValueType.Task: return '[Task]';
     }
   }
@@ -105,22 +101,21 @@ enum TokenType {
   Identifier, // 0
   Number,     // 1
   String,     // 2
-  Regex,      // 3
-  Assign,     // = 4
-  Question,   // ? 5
-  Colon,      // : 6
-  Rescue,     // ~ 7
-  At,         // @ 8
-  Hash,       // # 9
-  Not,        // ! 10
-  Caret,      // ^ 11
-  Dot,        // . 12
-  Comma,      // , 13
-  LParen,     // ( 14
-  RParen,     // ) 15
-  LBrace,     // { 16
-  RBrace,     // } 17
-  LBracket,   // [ 18
+  Assign,     // = 3
+  Question,   // ? 4
+  Colon,      // : 5
+  Rescue,     // ~ 6
+  At,         // @ 7
+  Hash,       // # 8
+  Not,        // ! 9
+  Caret,      // ^ 10
+  Dot,        // . 11
+  Comma,      // , 12
+  LParen,     // ( 13
+  RParen,     // ) 14
+  LBrace,     // { 15
+  RBrace,     // } 16
+  LBracket,   // [ 17
   RBracket,   // ] 19
   Newline,    // 20
   EOF         // 21

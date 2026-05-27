@@ -47,10 +47,12 @@ class Lexer {
             pos++;
           }
           continue;
-        } else if (_isRegexStart()) {
-          tokens.add(_readRegex());
-          continue;
         }
+      }
+
+      if (c == '-' && pos + 1 < source.length && _isDigit(source[pos + 1])) {
+        tokens.add(_readNumber());
+        continue;
       }
 
       if (_isDigit(c)) {
@@ -94,50 +96,19 @@ class Lexer {
     return tokens;
   }
 
-  bool _isRegexStart() {
-    int nextSlash = source.indexOf('/', pos + 1);
-    if (nextSlash == -1) return false;
-    String sub = source.substring(pos, nextSlash);
-    return !sub.contains('\n');
-  }
-
-  Token _readRegex() {
-    int start = pos;
-    pos++;
-    while (pos < source.length) {
-      if (source[pos] == '/' && source[pos - 1] != '\\') {
-        pos++;
-        // Read flags
-        while (pos < source.length && _isAlpha(source[pos])) {
-          pos++;
-        }
-        return Token(TokenType.Regex, source.substring(start, pos), _td());
-      }
-      pos++;
-    }
-    return Token(TokenType.Regex, source.substring(start, pos), _td());
-  }
-
   Token _readNumber() {
     int start = pos;
-    bool hasDot = false;
-    while (pos < source.length) {
-      String c = source[pos];
-      if (_isDigit(c)) {
-        pos++;
-      } else if (c == '.' && !hasDot && pos + 1 < source.length && _isDigit(source[pos + 1])) {
-        hasDot = true;
-        pos++;
-      } else {
-        break;
-      }
+    if (source[pos] == '-') pos++;
+    while (pos < source.length && (RegExp(r'[0-9]').hasMatch(source[pos]) || source[pos] == '.')) {
+      pos++;
     }
     return Token(TokenType.Number, source.substring(start, pos), _td());
   }
 
   Token _readIdentifier() {
     int start = pos;
-    while (pos < source.length && (_isAlphaNumeric(source[pos]) || source[pos] == '_')) {
+    pos++;
+    while (pos < source.length && (RegExp(r'[a-zA-Z0-9_]').hasMatch(source[pos]))) {
       pos++;
     }
     return Token(TokenType.Identifier, source.substring(start, pos), _td());
@@ -161,5 +132,4 @@ class Lexer {
   bool _isWhitespace(String c) => c == ' ' || c == '\t' || c == '\n' || c == '\r';
   bool _isDigit(String c) => RegExp(r'[0-9]').hasMatch(c);
   bool _isAlpha(String c) => RegExp(r'[a-zA-Z]').hasMatch(c);
-  bool _isAlphaNumeric(String c) => RegExp(r'[a-zA-Z0-9]').hasMatch(c);
 }
