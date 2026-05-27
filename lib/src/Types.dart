@@ -31,7 +31,7 @@ class Value {
         String s = (value ?? 0.0).toString();
         if (s.endsWith('.0')) return s.substring(0, s.length - 2);
         return s;
-      case ValueType.Void: return 'null';
+      case ValueType.Void: return 'Void';
       case ValueType.Array: return '[Array]';
       case ValueType.Object: return '{Object}';
       case ValueType.Opaque: return '[Opaque:${label ?? 'Unknown'}]';
