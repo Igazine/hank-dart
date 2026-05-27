@@ -13,7 +13,7 @@ class StdLib {
 
     Value mapAnyToHal(dynamic v) {
       if (v == null) return Value.voidVal();
-      if (v is IHALSerializable) return Value.string(v.serializeHAL());
+      if (v is IHankSerializable) return Value.string(v.serializeHank());
       if (v is double) return Value.number(v);
       if (v is int) return Value.number(v.toDouble());
       if (v is String) return Value.string(v);

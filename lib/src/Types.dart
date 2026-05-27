@@ -206,6 +206,6 @@ class FlowControlExpr extends Expr {
   }) : super(td);
 }
 
-abstract class IHALSerializable {
-  String serializeHAL();
+abstract class IHankSerializable {
+  String serializeHank();
 }

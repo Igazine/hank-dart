@@ -12,7 +12,7 @@ abstract class Runner {
   final Map<String, String> pathCache = {};
   final Map<String, Expr> astCache = {};
   final Map<String, String> macroMap = {};
-  final Scope coreScope = HALScope();
+  final Scope coreScope = HankScope();
 
   Runner();
 
@@ -84,7 +84,7 @@ abstract class Runner {
     Value scriptTask = interpreter.run(ast);
 
     if (scriptTask.type != ValueType.Task) {
-      throw Exception('HAL Error: Script must evaluate to a Task definition.');
+      throw Exception('Hank Error: Script must evaluate to a Task definition.');
     }
 
     return interpreter.call(scriptTask, args);

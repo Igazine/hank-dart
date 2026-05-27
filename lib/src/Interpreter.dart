@@ -7,11 +7,11 @@ class Interpreter implements ExecutionContext {
   final Scope coreScope;
 
   Interpreter(this.parentScope, this.coreScope) {
-    globalScope = HALScope(parent: parentScope ?? coreScope);
+    globalScope = HankScope(parent: parentScope ?? coreScope);
   }
 
   Interpreter.withCore(this.coreScope) : parentScope = null {
-    globalScope = HALScope(parent: coreScope);
+    globalScope = HankScope(parent: coreScope);
   }
 
   Value run(Expr ast) {
@@ -122,7 +122,7 @@ class Interpreter implements ExecutionContext {
           return _evalInScope(node.success, scope);
         } catch (e) {
           if (node.rescue != null) {
-            Scope rescueScope = HALScope(parent: scope);
+            Scope rescueScope = HankScope(parent: scope);
             if (node.catchVar != null) {
                rescueScope.set(node.catchVar!, Value.string(e.toString()));
             }
@@ -152,7 +152,7 @@ class Interpreter implements ExecutionContext {
         throw Exception('Too many arguments');
       }
 
-      Scope callScope = HALScope(parent: t.closure);
+      Scope callScope = HankScope(parent: t.closure);
       
       List<Param> params = t.params!;
       for (int i = 0; i < params.length; i++) {
@@ -180,11 +180,11 @@ class Interpreter implements ExecutionContext {
   Scope get scope => globalScope;
 }
 
-class HALScope implements Scope {
+class HankScope implements Scope {
   final Map<String, Value> values = {};
   final Scope? parent;
 
-  HALScope({this.parent});
+  HankScope({this.parent});
 
   @override
   Value get(String name) {

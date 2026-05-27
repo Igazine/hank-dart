@@ -1,8 +1,8 @@
-name: hal
-description: Dart implementation of the Hybrid Automation Language (HAL).
-version: 1.2.1
-homepage: https://igazine.github.io/hal/
-repository: https://github.com/Igazine/hal-dart
+name: hank
+description: Dart implementation of the Hank language.
+version: 1.3.0
+homepage: https://igazine.github.io/hank/
+repository: https://github.com/Igazine/hank-dart
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
