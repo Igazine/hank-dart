@@ -12,26 +12,34 @@ class Parser {
   Expr parse() {
     _skipNewlines();
     List<Expr> stmts = [];
-    
-    while (!_isEof()) {
-      _skipNewlines();
-      if (_isEof()) break;
-      
-      if (_peek().type == TokenType.LParen && _isFuncDefStart()) {
-        Expr func = _parseFuncDef();
-        if (stmts.isEmpty) {
-          _skipNewlines();
-          if (_isEof()) return func;
-        }
-        stmts.add(func);
-      } else {
-        stmts.add(_parseStatement());
-      }
+
+    // 1. Consume Macro Includes
+    while (!_isEof() && _peek().type == TokenType.At) {
+      stmts.add(_parseInclude());
       _skipNewlines();
     }
 
+    if (_isEof()) throw Exception("Syntax Error: Script is empty.");
+
+    // 2. Parse exactly ONE TaskDef (FuncDef or Block)
+    Expr mainTask;
+    if (_peek().type == TokenType.LParen && _isFuncDefStart()) {
+      mainTask = _parseFuncDef();
+    } else if (_peek().type == TokenType.LBrace) {
+      mainTask = _parseBlock();
+    } else {
+      throw Exception("Syntax Error: Expected main task definition (a closure or a block).");
+    }
+    stmts.add(mainTask);
+
+    // 3. Assert EOF
+    _skipNewlines();
+    if (!_isEof()) {
+      throw Exception("Syntax Error: Unexpected code outside of main task. A Hank script must contain exactly one Task definition.");
+    }
+
     if (stmts.length == 1) return stmts[0];
-    return BlockExpr(stmts, stmts.isNotEmpty ? stmts[0].td : TokenData.empty());
+    return BlockExpr(stmts, _getTd(stmts[0]));
   }
 
   Expr _parseStatement() {
