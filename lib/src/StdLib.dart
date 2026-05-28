@@ -96,6 +96,10 @@ class StdLib {
           throw Exception('HAL_HALT:$code');
         },
         'elapsedTime': (args, ctx) => Value.number(0.0),
+        'signal': (args, ctx) {
+          if (args.isNotEmpty) print('[SIGNAL] ${valToString(args[0])}');
+          return Value.voidVal();
+        },
       },
       'env': {
         'get': (args, ctx) => Value.voidVal(),
