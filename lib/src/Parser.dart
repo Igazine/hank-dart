@@ -104,11 +104,8 @@ class Parser {
     if (t.type == TokenType.String) {
       rawPath = _parseStringLiteral(t.literal);
       _consume(TokenType.String);
-    } else if (t.type == TokenType.Identifier) {
-      rawPath = t.literal;
-      _consume(TokenType.Identifier);
     } else {
-      throw _error('Expected path string or identifier after @');
+      throw Exception("Syntax Error: The '@' macro strictly requires a string literal path (e.g., @ \"utils\"). Identifier shorthand is not allowed.");
     }
 
     String? content = macroMap[rawPath];
