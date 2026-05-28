@@ -93,7 +93,7 @@ class StdLib {
         'halt': (args, ctx) {
           int code = 0;
           if (args.length > 0 && args[0].type == ValueType.Number) code = (args[0].value as double).toInt();
-          throw Exception('HAL_HALT:$code');
+          throw Exception('HANK_HALT:$code');
         },
         'elapsedTime': (args, ctx) => Value.number(0.0),
         'signal': (args, ctx) {

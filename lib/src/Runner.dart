@@ -4,7 +4,7 @@ import 'Parser.dart';
 import 'Interpreter.dart';
 
 /**
- * A base class for HAL Host Runners in Dart.
+ * A base class for Hank Host Runners in Dart.
  * Handles script loading, macro resolution, and AST caching.
  * Environment-agnostic: must be extended to provide I/O.
  */
@@ -74,7 +74,7 @@ abstract class Runner {
   }
 
   /**
-   * Executes a HAL script.
+   * Executes a Hank script.
    */
   Value run(String scriptPath, [List<Value> args = const []]) {
     String absPath = load(scriptPath);
