@@ -77,7 +77,7 @@ class Interpreter implements ExecutionContext {
     if (node is FuncCallExpr) {
       Value target = _evalInScope(node.target, scope);
       List<Value> args = node.args.map((a) => _evalInScope(a, scope)).toList();
-      return call(target, args);
+      return _callInternal(target, args);
     }
 
     if (node is FieldExpr) {
@@ -141,6 +141,16 @@ class Interpreter implements ExecutionContext {
 
   @override
   Value call(Value task, List<Value> args) {
+    List<Value> finalArgs = args;
+    if (task.type == ValueType.Task && task.task != null && !task.task!.isNative) {
+      if (args.length > task.task!.params!.length) {
+        finalArgs = args.sublist(0, task.task!.params!.length);
+      }
+    }
+    return _callInternal(task, finalArgs);
+  }
+
+  Value _callInternal(Value task, List<Value> args) {
     if (task.type != ValueType.Task) throw Exception('Target is not a function: ${task.toString()}');
     TaskValue t = task.task!;
 
