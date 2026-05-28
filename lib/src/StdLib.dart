@@ -11,18 +11,18 @@ class StdLib {
       return v.toString();
     }
 
-    Value mapAnyToHal(dynamic v) {
+    Value mapAnyToHank(dynamic v) {
       if (v == null) return Value.voidVal();
       if (v is IHankSerializable) return Value.string(v.serializeHank());
       if (v is double) return Value.number(v);
       if (v is int) return Value.number(v.toDouble());
       if (v is String) return Value.string(v);
       if (v is bool) return v ? Value.number(1.0) : Value.voidVal();
-      if (v is List) return Value(type: ValueType.Array, value: v.map(mapAnyToHal).toList());
+      if (v is List) return Value(type: ValueType.Array, value: v.map(mapAnyToHank).toList());
       if (v is Map) {
         Map<String, Value> obj = {};
         v.forEach((k, val) {
-          obj[k.toString()] = mapAnyToHal(val);
+          obj[k.toString()] = mapAnyToHank(val);
         });
         return Value(type: ValueType.Object, value: obj);
       }
@@ -40,22 +40,22 @@ class StdLib {
       return false;
     }
 
-    dynamic mapHalToAny(Value v) {
+    dynamic mapHankToAny(Value v) {
       switch (v.type) {
         case ValueType.Number: return v.value as double;
         case ValueType.String: return v.value as String;
-        case ValueType.Array: return (v.value as List<Value>).map(mapHalToAny).toList();
+        case ValueType.Array: return (v.value as List<Value>).map(mapHankToAny).toList();
         case ValueType.Object:
           Map<String, dynamic> obj = {};
           (v.value as Map<String, Value>).forEach((k, val) {
-            obj[k] = mapHalToAny(val);
+            obj[k] = mapHankToAny(val);
           });
           return obj;
         default: return null;
       }
     }
 
-    bool halEquals(Value a, Value b) {
+    bool hankEquals(Value a, Value b) {
       if (a.type != b.type) return false;
       switch (a.type) {
         case ValueType.Void: return true;
@@ -66,7 +66,7 @@ class StdLib {
           List<Value> l2 = b.value;
           if (l1.length != l2.length) return false;
           for (int i = 0; i < l1.length; i++) {
-            if (!halEquals(l1[i], l2[i])) return false;
+            if (!hankEquals(l1[i], l2[i])) return false;
           }
           return true;
         case ValueType.Object:
@@ -74,7 +74,7 @@ class StdLib {
           Map<String, Value> m2 = b.value;
           if (m1.length != m2.length) return false;
           for (var key in m1.keys) {
-            if (!m2.containsKey(key) || !halEquals(m1[key]!, m2[key]!)) return false;
+            if (!m2.containsKey(key) || !hankEquals(m1[key]!, m2[key]!)) return false;
           }
           return true;
         case ValueType.Opaque:
@@ -119,6 +119,67 @@ class StdLib {
         'concat': (args, ctx) => Value.string(args.map(valToString).join('')),
         'trim': (args, ctx) => args.isEmpty ? Value.voidVal() : Value.string(valToString(args[0]).trim()),
       },
+      'num': {
+        'parse': (args, ctx) {
+          if (args.isEmpty) return Value.voidVal();
+          String s = valToString(args[0]);
+          int base = 0;
+          if (args.length > 1 && args[1].type == ValueType.Number) {
+            base = (args[1].value as double).toInt();
+          }
+          
+          try {
+            if (base == 0) {
+              if (s.startsWith("0x")) return Value.number(int.parse(s.substring(2), radix: 16).toDouble());
+              if (s.startsWith("0b")) return Value.number(int.parse(s.substring(2), radix: 2).toDouble());
+              if (s.startsWith("0o")) return Value.number(int.parse(s.substring(2), radix: 8).toDouble());
+              return Value.number(double.parse(s));
+            }
+            return Value.number(int.parse(s, radix: base).toDouble());
+          } catch (e) {
+            return Value.voidVal();
+          }
+        },
+        'format': (args, ctx) {
+          if (args.isEmpty || args[0].type != ValueType.Number) return Value.voidVal();
+          int n = (args[0].value as double).toInt();
+          int base = 10;
+          if (args.length > 1 && args[1].type == ValueType.Number) {
+            base = (args[1].value as double).toInt();
+          }
+          if (base < 2 || base > 36) return Value.voidVal();
+          return Value.string(n.toRadixString(base));
+        },
+        'bitAnd': (args, ctx) {
+          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
+          int b = args.length > 1 ? (args[1].value as double).toInt() : 0;
+          return Value.number((a & b).toDouble());
+        },
+        'bitOr': (args, ctx) {
+          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
+          int b = args.length > 1 ? (args[1].value as double).toInt() : 0;
+          return Value.number((a | b).toDouble());
+        },
+        'bitXor': (args, ctx) {
+          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
+          int b = args.length > 1 ? (args[1].value as double).toInt() : 0;
+          return Value.number((a ^ b).toDouble());
+        },
+        'bitNot': (args, ctx) {
+          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
+          return Value.number((~a).toDouble());
+        },
+        'shiftL': (args, ctx) {
+          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
+          int b = args.length > 1 ? (args[1].value as double).toInt() : 0;
+          return Value.number((a << b).toDouble());
+        },
+        'shiftR': (args, ctx) {
+          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
+          int b = args.length > 1 ? (args[1].value as double).toInt() : 0;
+          return Value.number((a >> b).toDouble());
+        },
+      },
       'math': {
         'add': (args, ctx) => Value.number(args.fold(0.0, (sum, a) => sum + (a.type == ValueType.Number ? (a.value as double) : 0.0))),
         'sub': (args, ctx) => (args.length < 2) ? Value.voidVal() : Value.number((args[0].value as double) - (args[1].value as double)),
@@ -126,7 +187,7 @@ class StdLib {
         'div': (args, ctx) => (args.length < 2 || (args[1].value as double) == 0) ? Value.voidVal() : Value.number((args[0].value as double) / (args[1].value as double)),
         'gt': (args, ctx) => (args.length < 2) ? Value.voidVal() : ((args[0].value as double) > (args[1].value as double) ? Value.number(1.0) : Value.voidVal()),
         'lt': (args, ctx) => (args.length < 2) ? Value.voidVal() : ((args[0].value as double) < (args[1].value as double) ? Value.number(1.0) : Value.voidVal()),
-        'eq': (args, ctx) => (args.length < 2) ? Value.voidVal() : (halEquals(args[0], args[1]) ? Value.number(1.0) : Value.voidVal()),
+        'eq': (args, ctx) => (args.length < 2) ? Value.voidVal() : (hankEquals(args[0], args[1]) ? Value.number(1.0) : Value.voidVal()),
       },
       'logic': {
         'and': (args, ctx) {
@@ -144,7 +205,7 @@ class StdLib {
           }
           return Value.voidVal();
         },
-        'eq': (args, ctx) => (args.length < 2) ? Value.voidVal() : (halEquals(args[0], args[1]) ? Value.number(1.0) : Value.voidVal()),
+        'eq': (args, ctx) => (args.length < 2) ? Value.voidVal() : (hankEquals(args[0], args[1]) ? Value.number(1.0) : Value.voidVal()),
       },
       'arr': {
         'length': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Array) ? Value.number((args[0].value as List).length.toDouble()) : Value.voidVal(),
@@ -181,13 +242,12 @@ class StdLib {
       'obj': {
         'get': (args, ctx) => (args.length >= 2 && args[0].type == ValueType.Object) ? ((args[0].value as Map<String, Value>)[valToString(args[1])] ?? Value.voidVal()) : Value.voidVal(),
         'keys': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Object) ? Value(type: ValueType.Array, value: (args[0].value as Map<String, Value>).keys.map((k) => Value.string(k)).toList()) : Value.voidVal(),
-        'values': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Object) ? Value(type: ValueType.Array, value: (args[0].value as Map<String, Value>).values.toList()) : Value.voidVal(),
       },
       'json': {
         'parse': (args, ctx) {
           if (args.isEmpty) return Value.voidVal();
           try {
-            return mapAnyToHal(jsonDecode(valToString(args[0])));
+            return mapAnyToHank(jsonDecode(valToString(args[0])));
           } catch (e) {
             return Value.voidVal();
           }
@@ -196,7 +256,7 @@ class StdLib {
           if (args.isEmpty) return Value.voidVal();
           if (hasOpaque(args[0])) return Value.voidVal();
           try {
-            return Value.string(jsonEncode(mapHalToAny(args[0])));
+            return Value.string(jsonEncode(mapHankToAny(args[0])));
           } catch (e) {
             return Value.voidVal();
           }

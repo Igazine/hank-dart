@@ -88,6 +88,29 @@ abstract class Scope {
   bool exists(String name);
 }
 
+/**
+ * A base class for all Hank resources.
+ * Encapsulates the unique identity, raw content, and parsed AST of a script.
+ */
+abstract class Resource {
+  String? content;
+  final String id;
+  Expr? ast;
+
+  Resource(this.id);
+
+  /**
+   * Fulfills the raw content of the resource from its source.
+   */
+  Future<void> load();
+
+  /**
+   * Resolves a relative identifier into a new Resource instance.
+   * @param id The string identifier (e.g., from a @ macro).
+   */
+  Resource resolve(String id);
+}
+
 class TokenData {
   final int line;
   final String lineText;

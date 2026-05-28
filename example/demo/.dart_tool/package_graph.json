@@ -7,13 +7,13 @@
       "name": "demo",
       "version": "0.1.0",
       "dependencies": [
-        "hal"
+        "hank"
       ],
       "devDependencies": []
     },
     {
-      "name": "hal",
-      "version": "1.0.0",
+      "name": "hank",
+      "version": "1.3.0",
       "dependencies": [
         "path"
       ]

@@ -55,6 +55,14 @@ class Interpreter implements ExecutionContext {
 
       Value last = Value.voidVal();
       for (var stmt in node.stmts) {
+        // Skip already hoisted tasks in eval pass
+        if (stmt is AssignExpr) {
+           if (stmt.value is FuncDefExpr) continue;
+           if (stmt.value is AssignExpr) {
+             var inner = stmt.value as AssignExpr;
+             if (inner.value is FuncDefExpr) continue;
+           }
+        }
         last = _evalInScope(stmt, scope);
         if (last.type == ValueType.Void && last.value == '_RETURN_') return last;
       }

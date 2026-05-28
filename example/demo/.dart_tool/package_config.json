@@ -2,7 +2,7 @@
   "configVersion": 2,
   "packages": [
     {
-      "name": "hal",
+      "name": "hank",
       "rootUri": "../../../",
       "packageUri": "lib/",
       "languageVersion": "3.0"

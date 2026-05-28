@@ -1,13 +1,15 @@
 import 'Types.dart';
 import 'Lexer.dart';
 
+typedef MacroResolver = Expr Function(String macroPath);
+
 class Parser {
   final List<Token> tokens;
   final String filename;
-  final Map<String, String> macroMap;
+  final MacroResolver macroResolver;
   int pos = 0;
 
-  Parser(this.tokens, this.filename, this.macroMap);
+  Parser(this.tokens, this.filename, this.macroResolver);
 
   Expr parse() {
     _skipNewlines();
@@ -42,6 +44,8 @@ class Parser {
     return BlockExpr(stmts, _getTd(stmts[0]));
   }
 
+  TokenData _getTd(Expr expr) => expr.td;
+
   Expr _parseStatement() {
     _skipNewlines();
     Token t = _peek();
@@ -52,6 +56,10 @@ class Parser {
 
     if (t.type == TokenType.At) {
       return _parseInclude();
+    }
+
+    if (t.type == TokenType.Caret) {
+      return _parseReturn();
     }
 
     Expr expr = _parseExpression();
@@ -108,16 +116,8 @@ class Parser {
       throw Exception("Syntax Error: The '@' macro strictly requires a string literal path (e.g., @ \"utils\"). Identifier shorthand is not allowed.");
     }
 
-    String? content = macroMap[rawPath];
-    if (content == null) {
-      throw _error('Macro resource not found: @$rawPath');
-    }
-
+    Expr taskAst = macroResolver(rawPath);
     String taskName = rawPath.split('/').last.split('.').first;
-
-    var lexer = Lexer(content);
-    var subParser = Parser(lexer.tokenize(), rawPath, macroMap);
-    Expr taskAst = subParser.parse();
 
     return AssignExpr(taskName, taskAst, td);
   }
@@ -130,7 +130,7 @@ class Parser {
     Expr expr = _parsePrimary();
 
     if (_peek().type == TokenType.Assign) {
-      if (expr is IdentExpr) {
+      if (expr is IdentExpr && !expr.isCore) {
         TokenData td = _consume(TokenType.Assign);
         Expr val = _parseExpression();
         return AssignExpr(expr.name, val, td);
@@ -188,14 +188,7 @@ class Parser {
         }
         break;
       case TokenType.Caret:
-        _consume(TokenType.Caret);
-        Expr val;
-        if (!_isEof() && ![TokenType.Newline, TokenType.RBrace, TokenType.RBracket, TokenType.Comma, TokenType.RParen].contains(_peek().type)) {
-           val = _parseExpression();
-        } else {
-           val = LiteralExpr(Value.voidVal(), td);
-        }
-        expr = UnOpExpr('^', val, td);
+        expr = _parseReturn();
         break;
       case TokenType.Not:
         _consume(TokenType.Not);
@@ -344,6 +337,17 @@ class Parser {
     _skipNewlines();
     _consume(TokenType.RParen);
     return args;
+  }
+
+  Expr _parseReturn() {
+    TokenData td = _consume(TokenType.Caret);
+    Expr val;
+    if (!_isEof() && ![TokenType.Newline, TokenType.RBrace, TokenType.RBracket, TokenType.Comma, TokenType.RParen].contains(_peek().type)) {
+       val = _parseExpression();
+    } else {
+       val = LiteralExpr(Value.voidVal(), td);
+    }
+    return UnOpExpr('^', val, td);
   }
 
   String _parseStringLiteral(String lit) {

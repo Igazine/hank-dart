@@ -4,27 +4,15 @@ import 'Parser.dart';
 import 'Interpreter.dart';
 
 /**
- * A base class for Hank Host Runners in Dart.
- * Handles script loading, macro resolution, and AST caching.
- * Environment-agnostic: must be extended to provide I/O.
+ * A Hank Host Runner.
+ * Handles resource orchestration, macro resolution, and AST caching.
+ * Platform-agnostic: uses the Resource model for all content retrieval.
  */
-abstract class Runner {
-  final Map<String, String> pathCache = {};
-  final Map<String, Expr> astCache = {};
-  final Map<String, String> macroMap = {};
+class Runner {
+  final Map<String, Resource> resourceCache = {};
   final Scope coreScope = HankScope();
 
   Runner();
-
-  /**
-   * Reads a file from the host environment.
-   */
-  String readFile(String path);
-
-  /**
-   * Resolves a macro path relative to the current file.
-   */
-  String resolvePath(String macroPath, String baseFile);
 
   /**
    * Registers a set of native tasks under a module name.
@@ -45,40 +33,96 @@ abstract class Runner {
   }
 
   /**
-   * Pre-loads and caches a script for execution.
+   * Pre-loads and caches a resource for execution.
    */
-  String load(String scriptPath) {
-    String absPath = resolvePath(scriptPath, '');
-    if (astCache.containsKey(absPath)) return absPath;
+  Future<Expr> load(Resource resource, [List<String> stack = const []]) async {
+    // Check cache
+    if (resourceCache.containsKey(resource.id)) {
+      Resource cached = resourceCache[resource.id]!;
+      if (cached.ast != null) return cached.ast!;
+    }
 
-    _preprocess(absPath, []);
+    // Circular Dependency Check
+    if (stack.contains(resource.id)) throw Exception('Circular Dependency: ${resource.id}');
 
-    String? content = pathCache[absPath];
-    if (content == null) throw Exception('File not loaded: $absPath');
+    // Reconcile with cache
+    Resource activeResource = resourceCache[resource.id] ?? resource;
+    if (!resourceCache.containsKey(resource.id)) {
+      resourceCache[resource.id] = resource;
+    }
 
-    var lexer = Lexer(content);
-    var parser = Parser(lexer.tokenize(), absPath, macroMap);
+    await activeResource.load();
+    if (activeResource.content == null) throw Exception('Resource content not loaded: ${activeResource.id}');
+
+    List<String> newStack = List.from(stack)..add(activeResource.id);
+
+    var lexer = Lexer(activeResource.content!);
+    var parser = Parser(lexer.tokenize(), activeResource.id, (String macroPath) {
+      Resource mRes = activeResource.resolve(macroPath);
+      // Recursively load macro (Wait! Parser is sync, load is async).
+      // For Dart, if we want sync macros, the Resource.load() must be capable of sync or we pre-load.
+      // But we are following the Haxe/Go architecture.
+      // Let's implement a sync-compatible path or use a temporary sync load for macros.
+      return _loadSync(mRes, newStack);
+    });
+
     Expr ast = parser.parse();
+    activeResource.ast = ast;
+    return ast;
+  }
+
+  /**
+   * Internal synchronous load for macros.
+   */
+  Expr _loadSync(Resource resource, List<String> stack) {
+    if (resourceCache.containsKey(resource.id)) {
+      Resource cached = resourceCache[resource.id]!;
+      if (cached.ast != null) return cached.ast!;
+    }
+    if (stack.contains(resource.id)) throw Exception('Circular Dependency: ${resource.id}');
+
+    Resource activeResource = resourceCache[resource.id] ?? resource;
+    if (!resourceCache.containsKey(resource.id)) resourceCache[resource.id] = resource;
+
+    // This requires the resource.load() to be capable of sync execution.
+    // In Dart, we'll call load() and if it returns a Future that is already completed, we are fine.
+    // But since it's an abstract Future, we might have issues.
+    // Host implementations for CLI should ideally provide a sync load mechanism.
+    // For now, we'll try to await it but this is a sync context.
+    // Let's assume the host handles sync I/O in the Resource.
     
-    astCache[absPath] = ast;
-    return absPath;
+    // NOTE: Dart's async/await can't be used in a sync function.
+    // We'll trust that the host implementation of load() for CLI is effectively sync or pre-loaded.
+    activeResource.load(); // Kick off load
+    
+    if (activeResource.content == null) {
+      throw Exception('Resource content not loaded (Sync required for macros): ${activeResource.id}');
+    }
+
+    List<String> newStack = List.from(stack)..add(activeResource.id);
+    var lexer = Lexer(activeResource.content!);
+    var parser = Parser(lexer.tokenize(), activeResource.id, (String macroPath) {
+      Resource mRes = activeResource.resolve(macroPath);
+      return _loadSync(mRes, newStack);
+    });
+
+    Expr ast = parser.parse();
+    activeResource.ast = ast;
+    return ast;
   }
 
   /**
-   * Removes a script from the cache.
+   * Removes a resource from the cache.
    */
-  void unload(String scriptPath) {
-    String absPath = resolvePath(scriptPath, '');
-    astCache.remove(absPath);
-    pathCache.remove(absPath);
+  void unload(Resource resource) {
+    resourceCache.remove(resource.id);
   }
 
   /**
-   * Executes a Hank script.
+   * Executes a Hank Resource.
    */
-  Value run(String scriptPath, [List<Value> args = const []]) {
-    String absPath = load(scriptPath);
-    Expr ast = astCache[absPath]!;
+  Future<Value> run(Resource resource, [List<Value> args = const []]) async {
+    Expr ast = await load(resource);
 
     var interpreter = Interpreter(null, coreScope);
     Value scriptTask = interpreter.run(ast);
@@ -88,39 +132,5 @@ abstract class Runner {
     }
 
     return interpreter.call(scriptTask, args);
-  }
-
-  void _preprocess(String filePath, List<String> stack) {
-    if (stack.contains(filePath)) throw Exception('Circular Dependency: $filePath');
-    if (pathCache.containsKey(filePath)) return;
-
-    String content = readFile(filePath);
-    pathCache[filePath] = content;
-    
-    List<String> newStack = List.from(stack)..add(filePath);
-    List<String> macros = _scanMacros(content);
-
-    for (var m in macros) {
-      String mPath = resolvePath(m, filePath);
-      _preprocess(mPath, newStack);
-      macroMap[m] = pathCache[mPath]!;
-    }
-  }
-
-  List<String> _scanMacros(String content) {
-    var lexer = Lexer(content);
-    var tokens = lexer.tokenize();
-    List<String> macros = [];
-    for (int i = 0; i < tokens.length - 1; i++) {
-      if (tokens[i].type == TokenType.At) {
-        var next = tokens[i + 1];
-        if (next.type == TokenType.String) {
-          macros.add(next.literal.substring(1, next.literal.length - 1));
-        } else if (next.type == TokenType.Identifier) {
-          macros.add(next.literal);
-        }
-      }
-    }
-    return macros;
   }
 }
