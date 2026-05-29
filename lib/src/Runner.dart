@@ -34,6 +34,16 @@ class Runner {
   }
 
   /**
+   * Registers a Hank Extension and all its modules.
+   */
+  void registerExtension(HankExtension ext) {
+    var mods = ext.getModules();
+    mods.forEach((name, tasks) {
+      registerModule(name, tasks);
+    });
+  }
+
+  /**
    * Pre-loads and caches a resource for execution.
    */
   Future<Expr> load(Resource resource, [List<String> stack = const []]) async {

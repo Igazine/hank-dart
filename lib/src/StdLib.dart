@@ -1,12 +1,17 @@
 import 'dart:convert';
 import 'Types.dart';
+import 'ErrorRegistry.dart';
 
-class StdLib {
+class StdLib implements HankExtension {
+  @override
+  String get name => "StdLib";
+
   /**
    * Returns the recommended standard library modules.
    * Developers should register these manually on their Runner.
    */
-  static Map<String, Map<String, NativeFunc>> getModules() {
+  @override
+  Map<String, Map<String, NativeFunc>> getModules() {
     String valToString(Value v) {
       return v.toString();
     }
@@ -149,35 +154,6 @@ class StdLib {
           }
           if (base < 2 || base > 36) return Value.voidVal();
           return Value.string(n.toRadixString(base));
-        },
-        'bitAnd': (args, ctx) {
-          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
-          int b = args.length > 1 ? (args[1].value as double).toInt() : 0;
-          return Value.number((a & b).toDouble());
-        },
-        'bitOr': (args, ctx) {
-          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
-          int b = args.length > 1 ? (args[1].value as double).toInt() : 0;
-          return Value.number((a | b).toDouble());
-        },
-        'bitXor': (args, ctx) {
-          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
-          int b = args.length > 1 ? (args[1].value as double).toInt() : 0;
-          return Value.number((a ^ b).toDouble());
-        },
-        'bitNot': (args, ctx) {
-          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
-          return Value.number((~a).toDouble());
-        },
-        'shiftL': (args, ctx) {
-          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
-          int b = args.length > 1 ? (args[1].value as double).toInt() : 0;
-          return Value.number((a << b).toDouble());
-        },
-        'shiftR': (args, ctx) {
-          int a = args.length > 0 ? (args[0].value as double).toInt() : 0;
-          int b = args.length > 1 ? (args[1].value as double).toInt() : 0;
-          return Value.number((a >> b).toDouble());
         },
       },
       'math': {

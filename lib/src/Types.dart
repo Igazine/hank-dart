@@ -234,6 +234,11 @@ abstract class IHankSerializable {
   String serializeHank();
 }
 
+abstract class HankExtension {
+  String get name;
+  Map<String, Map<String, NativeFunc>> getModules();
+}
+
 enum HankError {
   // Lexical Errors (10xx)
   UnexpectedCharacter, // 1001
@@ -259,7 +264,8 @@ enum HankError {
   TooManyArguments, // 4002
   MissingRequiredParameter, // 4003
   Halt, // 4004
-  GenericRuntimeError, // 4005
+  BitwiseOutOfBounds, // 4005
+  GenericRuntimeError, // 4006
 }
 
 class HankErrorValue implements Exception {
