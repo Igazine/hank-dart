@@ -105,6 +105,18 @@ class StdLib implements HankExtension {
           if (args.isNotEmpty) print('[SIGNAL] ${valToString(args[0])}');
           return Value.voidVal();
         },
+        'while': (args, ctx) {
+          if (args.length < 2) return Value.voidVal();
+          Value cond = args[0];
+          Value body = args[1];
+          Value last = Value.voidVal();
+          while (true) {
+            Value condVal = ctx.call(cond, []);
+            if (condVal.type == ValueType.Void) break;
+            last = ctx.call(body, []);
+          }
+          return last;
+        },
       },
       'env': {
         'get': (args, ctx) => Value.voidVal(),
