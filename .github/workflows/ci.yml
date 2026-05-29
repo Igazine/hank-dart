@@ -9,4 +9,4 @@ jobs:
           submodules: recursive
       - uses: dart-lang/setup-dart@v1
       - run: dart pub get
-      - run: dart example/demo/main.dart
+      - run: cd example/demo && dart pub get && dart bin/main.dart
