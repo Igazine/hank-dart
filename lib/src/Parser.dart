@@ -1,5 +1,6 @@
 import 'Types.dart';
 import 'Lexer.dart';
+import 'ErrorRegistry.dart';
 
 typedef MacroResolver = Expr Function(String macroPath);
 
@@ -21,7 +22,7 @@ class Parser {
       _skipNewlines();
     }
 
-    if (_isEof()) throw Exception("Syntax Error: Script is empty.");
+    if (_isEof()) throw _error(HankError.EmptyScript);
 
     // 2. Parse exactly ONE TaskDef (FuncDef or Block)
     Expr mainTask;
@@ -30,14 +31,14 @@ class Parser {
     } else if (_peek().type == TokenType.LBrace) {
       mainTask = _parseBlock();
     } else {
-      throw Exception("Syntax Error: Expected main task definition (a closure or a block).");
+      throw _error(HankError.ExpectedMainTask);
     }
     stmts.add(mainTask);
 
     // 3. Assert EOF
     _skipNewlines();
     if (!_isEof()) {
-      throw Exception("Syntax Error: Unexpected code outside of main task. A Hank script must contain exactly one Task definition.");
+      throw _error(HankError.UnexpectedCodeOutsideMainTask);
     }
 
     if (stmts.length == 1) return stmts[0];
@@ -78,13 +79,17 @@ class Parser {
     Expr? rescue;
     String? catchVar;
 
+    int savedPos = pos;
     _skipNewlines();
     if (_peek().type == TokenType.Colon) {
       _consume(TokenType.Colon);
       fallback = _parseBlock();
+      savedPos = pos;
+      _skipNewlines();
+    } else {
+      pos = savedPos;
     }
 
-    _skipNewlines();
     if (_peek().type == TokenType.Rescue) {
       _consume(TokenType.Rescue);
       if (_peek().type == TokenType.LParen) {
@@ -93,6 +98,8 @@ class Parser {
         _consume(TokenType.RParen);
       }
       rescue = _parseBlock();
+    } else {
+      pos = savedPos;
     }
 
     return FlowControlExpr(
@@ -113,7 +120,7 @@ class Parser {
       rawPath = _parseStringLiteral(t.literal);
       _consume(TokenType.String);
     } else {
-      throw Exception("Syntax Error: The '@' macro strictly requires a string literal path (e.g., @ \"utils\"). Identifier shorthand is not allowed.");
+      throw _error(HankError.MacroRequiresString);
     }
 
     Expr taskAst = macroResolver(rawPath);
@@ -135,7 +142,7 @@ class Parser {
         Expr val = _parseExpression();
         return AssignExpr(expr.name, val, td);
       } else {
-        throw _error('Invalid assignment target');
+        throw _error(HankError.InvalidAssignmentTarget);
       }
     }
 
@@ -194,8 +201,10 @@ class Parser {
         _consume(TokenType.Not);
         expr = UnOpExpr('!', _parsePrimary(), td);
         break;
+      case TokenType.Error:
+        throw _error(HankError.UnexpectedCharacter, [t.literal]);
       default:
-        throw _error('Unexpected token: ${t.type} (${t.literal})');
+        throw _error(HankError.UnexpectedToken, [t.type, t.literal]);
     }
 
     return _finishPrimary(expr);
@@ -366,7 +375,7 @@ class Parser {
       _consume(TokenType.Identifier);
       return t.literal;
     }
-    throw _error('Expected identifier, found ${t.type}');
+    throw _error(HankError.ExpectedIdentifier, [t.type]);
   }
 
   TokenData _consume(TokenType type) {
@@ -375,7 +384,7 @@ class Parser {
       pos++;
       return t.td;
     }
-    throw _error('Expected $type, found ${t.literal}');
+    throw _error(HankError.UnexpectedToken, [type, t.type]);
   }
 
   Token _peek() => tokens[pos];
@@ -388,8 +397,8 @@ class Parser {
 
   bool _isEof() => pos >= tokens.length || tokens[pos].type == TokenType.EOF;
 
-  Exception _error(String msg) {
+  Exception _error(HankError code, [List<dynamic>? args]) {
     TokenData td = _peek().td;
-    return Exception('ERROR: $msg in $filename at\n\t${td.line}:\t${td.lineText}');
+    return HankErrorRegistry.create(code, args, filename, td.line, td.lineText);
   }
 }

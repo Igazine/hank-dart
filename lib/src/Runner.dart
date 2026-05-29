@@ -2,6 +2,7 @@ import 'Types.dart';
 import 'Lexer.dart';
 import 'Parser.dart';
 import 'Interpreter.dart';
+import 'ErrorRegistry.dart';
 
 /**
  * A Hank Host Runner.
@@ -43,7 +44,9 @@ class Runner {
     }
 
     // Circular Dependency Check
-    if (stack.contains(resource.id)) throw Exception('Circular Dependency: ${resource.id}');
+    if (stack.contains(resource.id)) {
+      throw HankErrorRegistry.create(HankError.CircularDependency, [resource.id]);
+    }
 
     // Reconcile with cache
     Resource activeResource = resourceCache[resource.id] ?? resource;
@@ -52,17 +55,15 @@ class Runner {
     }
 
     await activeResource.load();
-    if (activeResource.content == null) throw Exception('Resource content not loaded: ${activeResource.id}');
+    if (activeResource.content == null) {
+      throw HankErrorRegistry.create(HankError.ResourceContentNotLoaded, [activeResource.id]);
+    }
 
     List<String> newStack = List.from(stack)..add(activeResource.id);
 
     var lexer = Lexer(activeResource.content!);
     var parser = Parser(lexer.tokenize(), activeResource.id, (String macroPath) {
       Resource mRes = activeResource.resolve(macroPath);
-      // Recursively load macro (Wait! Parser is sync, load is async).
-      // For Dart, if we want sync macros, the Resource.load() must be capable of sync or we pre-load.
-      // But we are following the Haxe/Go architecture.
-      // Let's implement a sync-compatible path or use a temporary sync load for macros.
       return _loadSync(mRes, newStack);
     });
 
@@ -79,24 +80,17 @@ class Runner {
       Resource cached = resourceCache[resource.id]!;
       if (cached.ast != null) return cached.ast!;
     }
-    if (stack.contains(resource.id)) throw Exception('Circular Dependency: ${resource.id}');
+    if (stack.contains(resource.id)) {
+      throw HankErrorRegistry.create(HankError.CircularDependency, [resource.id]);
+    }
 
     Resource activeResource = resourceCache[resource.id] ?? resource;
     if (!resourceCache.containsKey(resource.id)) resourceCache[resource.id] = resource;
 
-    // This requires the resource.load() to be capable of sync execution.
-    // In Dart, we'll call load() and if it returns a Future that is already completed, we are fine.
-    // But since it's an abstract Future, we might have issues.
-    // Host implementations for CLI should ideally provide a sync load mechanism.
-    // For now, we'll try to await it but this is a sync context.
-    // Let's assume the host handles sync I/O in the Resource.
-    
-    // NOTE: Dart's async/await can't be used in a sync function.
-    // We'll trust that the host implementation of load() for CLI is effectively sync or pre-loaded.
     activeResource.load(); // Kick off load
     
     if (activeResource.content == null) {
-      throw Exception('Resource content not loaded (Sync required for macros): ${activeResource.id}');
+      throw HankErrorRegistry.create(HankError.ResourceContentNotLoaded, [activeResource.id]);
     }
 
     List<String> newStack = List.from(stack)..add(activeResource.id);
@@ -128,7 +122,7 @@ class Runner {
     Value scriptTask = interpreter.run(ast);
 
     if (scriptTask.type != ValueType.Task) {
-      throw Exception('Hank Error: Script must evaluate to a Task definition.');
+      throw HankErrorRegistry.create(HankError.ScriptMustBeTask);
     }
 
     return interpreter.call(scriptTask, args);

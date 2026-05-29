@@ -1,4 +1,5 @@
 import 'Types.dart';
+import 'ErrorRegistry.dart';
 
 class Lexer {
   final String source;
@@ -88,7 +89,7 @@ class Lexer {
         case '[': tokens.add(Token(TokenType.LBracket, '[', _td())); break;
         case ']': tokens.add(Token(TokenType.RBracket, ']', _td())); break;
         default:
-          // Unknown char, skip
+          tokens.add(Token(TokenType.Error, HankErrorRegistry.create(HankError.UnexpectedCharacter, [c]).message, _td()));
       }
       pos++;
     }
@@ -118,13 +119,15 @@ class Lexer {
     int start = pos;
     pos++;
     while (pos < source.length) {
-      if (source[pos] == quote && source[pos - 1] != '\\') {
-        pos++;
-        break;
+      if (source[pos] == quote) {
+        if (source[pos - 1] != '\\') {
+          pos++;
+          return Token(TokenType.String, source.substring(start, pos), _td());
+        }
       }
       pos++;
     }
-    return Token(TokenType.String, source.substring(start, pos), _td());
+    return Token(TokenType.Error, HankErrorRegistry.create(HankError.UnclosedStringLiteral).message, _td());
   }
 
   TokenData _td() => TokenData(line: line, lineText: lineText);

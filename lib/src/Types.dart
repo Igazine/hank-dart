@@ -141,7 +141,8 @@ enum TokenType {
   LBracket,   // [ 17
   RBracket,   // ] 19
   Newline,    // 20
-  EOF         // 21
+  EOF,        // 21
+  Error       // 22
 }
 
 class Token {
@@ -231,4 +232,42 @@ class FlowControlExpr extends Expr {
 
 abstract class IHankSerializable {
   String serializeHank();
+}
+
+enum HankError {
+  // Lexical Errors (10xx)
+  UnexpectedCharacter, // 1001
+  UnclosedStringLiteral, // 1002
+
+  // Syntax Errors (20xx)
+  EmptyScript, // 2001
+  ExpectedMainTask, // 2002
+  UnexpectedCodeOutsideMainTask, // 2003
+  InvalidAssignmentTarget, // 2004
+  UnexpectedToken, // 2005
+  MacroRequiresString, // 2006
+  ExpectedIdentifier, // 2007
+
+  // Resolution & Runner Errors (30xx)
+  CircularDependency, // 3001
+  ResourceContentNotLoaded, // 3002
+  ScriptMustBeTask, // 3003
+  MacroResourceNotFound, // 3004
+
+  // Runtime Errors (40xx)
+  TargetNotFunction, // 4001
+  TooManyArguments, // 4002
+  MissingRequiredParameter, // 4003
+  Halt, // 4004
+  GenericRuntimeError, // 4005
+}
+
+class HankErrorValue implements Exception {
+  final HankError code;
+  final String message;
+
+  HankErrorValue(this.code, this.message);
+
+  @override
+  String toString() => message;
 }

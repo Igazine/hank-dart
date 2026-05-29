@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'Types.dart';
+import 'ErrorRegistry.dart';
 
 class Interpreter implements ExecutionContext {
   final Scope? parentScope;
@@ -15,7 +16,12 @@ class Interpreter implements ExecutionContext {
   }
 
   Value run(Expr ast) {
-    return eval(ast);
+    try {
+      return eval(ast);
+    } catch (e) {
+      print('Runtime Error: $e');
+      return Value.voidVal();
+    }
   }
 
   @override
@@ -159,7 +165,9 @@ class Interpreter implements ExecutionContext {
   }
 
   Value _callInternal(Value task, List<Value> args) {
-    if (task.type != ValueType.Task) throw Exception('Target is not a function: ${task.toString()}');
+    if (task.type != ValueType.Task) {
+      throw HankErrorRegistry.create(HankError.TargetNotFunction, [task.toString()]);
+    }
     TaskValue t = task.task!;
 
     if (t.isNative) {
@@ -167,7 +175,7 @@ class Interpreter implements ExecutionContext {
     } else {
       // Arity Enforcement
       if (args.length > t.params!.length) {
-        throw Exception('Too many arguments');
+        throw HankErrorRegistry.create(HankError.TooManyArguments);
       }
 
       Scope callScope = HankScope(parent: t.closure);
@@ -181,7 +189,7 @@ class Interpreter implements ExecutionContext {
         } else if (p.defaultValue != null) {
           val = _evalInScope(p.defaultValue!, callScope);
         } else if (!p.isOptional) {
-          throw Exception('Missing required parameter: ${p.name}');
+          throw HankErrorRegistry.create(HankError.MissingRequiredParameter, [p.name]);
         }
         callScope.set(p.name, val);
       }
