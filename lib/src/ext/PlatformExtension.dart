@@ -9,7 +9,7 @@ class PlatformExtension implements HankExtension {
 
   static int _checkSafeInt(double n) {
     if (n.abs() > _SAFE_INT_MAX || !n.isFinite) {
-      throw ErrorRegistry.create(HankError.BitwiseOutOfBounds, [n]);
+      throw HankErrorRegistry.create(HankError.BitwiseOutOfBounds, [n]);
     }
     return n.toInt();
   }
@@ -17,7 +17,7 @@ class PlatformExtension implements HankExtension {
   static double _fromSafeInt(int n) {
     double f = n.toDouble();
     if (f.abs() > _SAFE_INT_MAX) {
-      throw ErrorRegistry.create(HankError.BitwiseOutOfBounds, [f]);
+      throw HankErrorRegistry.create(HankError.BitwiseOutOfBounds, [f]);
     }
     return f;
   }
