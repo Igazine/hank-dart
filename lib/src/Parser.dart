@@ -70,9 +70,16 @@ class Parser {
 
   Expr _parseFlowControl() {
     TokenData td = _consume(TokenType.Question);
-    _consume(TokenType.LParen);
-    Expr condition = _parseExpression();
-    _consume(TokenType.RParen);
+    
+    Expr condition;
+    if (_peek().type == TokenType.LParen) {
+      _consume(TokenType.LParen);
+      condition = _parseExpression();
+      _consume(TokenType.RParen);
+    } else {
+      condition = _parseExpression();
+    }
+
     Expr success = _parseBlock();
 
     Expr? fallback;
