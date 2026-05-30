@@ -39,6 +39,13 @@ void main(List<String> args) async {
 Runner createRunner() {
   var runner = Runner();
 
+  // 0. Localization
+  runner.registerLocalization({
+    4001: "Target is not a function: {0}",
+    4007: "Type Mismatch: Expected {0}, got {1} in {2}",
+    4005: "Value exceeds safe integer bounds: {0} in {1}",
+  });
+
   // 1. Register StdLib (Pure)
   runner.registerExtension(new StdLib());
 
@@ -68,6 +75,8 @@ Future<void> runConformance(String workspaceRoot) async {
     'test/conformance/15_logic_eq.hank',
     'test/conformance/16_chained_assign.hank',
     'test/conformance/17_num_module.hank',
+    'test/conformance/18_runtime_module.hank',
+    'test/conformance/19_error_handling.hank',
   ];
 
   for (var t in tests) {

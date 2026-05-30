@@ -12,8 +12,16 @@ import 'ErrorRegistry.dart';
 class Runner {
   final Map<String, Resource> resourceCache = {};
   final Scope coreScope = HankScope();
+  final Map<int, String> localization = {};
 
   Runner();
+
+  /**
+   * Registers a localization map (Code -> Template).
+   */
+  void registerLocalization(Map<int, String> map) {
+    localization.addAll(map);
+  }
 
   /**
    * Registers a set of native tasks under a module name.
@@ -30,7 +38,7 @@ class Runner {
         ),
       );
     });
-    coreScope.set(name, Value(type: ValueType.Object, value: moduleObj));
+    coreScope.set(name, Value(type: ValueType.Map, value: moduleObj));
   }
 
   /**
@@ -128,13 +136,15 @@ class Runner {
   Future<Value> run(Resource resource, [List<Value> args = const []]) async {
     Expr ast = await load(resource);
 
-    var interpreter = Interpreter(null, coreScope);
-    Value scriptTask = interpreter.run(ast);
+    var interpreter = Interpreter(null, coreScope, localization);
+    Value scriptRes = interpreter.run(ast);
 
-    if (scriptTask.type != ValueType.Task) {
-      throw HankErrorRegistry.create(HankError.ScriptMustBeTask);
+    if (scriptRes.type == ValueType.Task) {
+      return interpreter.call(scriptRes, args);
+    } else if (scriptRes.type == ValueType.Error) {
+      return scriptRes;
     }
 
-    return interpreter.call(scriptTask, args);
+    throw HankErrorRegistry.create(HankError.ScriptMustBeTask);
   }
 }

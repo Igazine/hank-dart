@@ -5,9 +5,10 @@ enum ValueType {
   Number,
   String,
   Array,
-  Object,
+  Map,
   Opaque,
-  Task
+  Task,
+  Error
 }
 
 class Value {
@@ -15,12 +16,16 @@ class Value {
   final dynamic value;
   final String? label;   // For Opaque
   final TaskValue? task;  // For Task
+  final int? code;       // For Error
+  final List<Value>? args; // For Error
 
   Value({
     required this.type,
     this.value,
     this.label,
     this.task,
+    this.code,
+    this.args,
   });
 
   @override
@@ -33,9 +38,10 @@ class Value {
         return s;
       case ValueType.Void: return 'Void';
       case ValueType.Array: return '[Array]';
-      case ValueType.Object: return '{Object}';
+      case ValueType.Map: return '[Map]';
       case ValueType.Opaque: return '[Opaque:${label ?? 'Unknown'}]';
       case ValueType.Task: return '[Task]';
+      case ValueType.Error: return '[Error:$code]';
     }
   }
 
@@ -79,6 +85,8 @@ typedef NativeFunc = Value Function(List<Value> args, ExecutionContext ctx);
 abstract class ExecutionContext {
   Value call(Value task, List<Value> args);
   Value eval(Expr node);
+  bool isError(Value val);
+  Map<int, String> getLocalization();
   Scope get scope;
 }
 
@@ -181,9 +189,9 @@ class IdentExpr extends Expr {
 }
 
 class FieldExpr extends Expr {
-  final Expr target;
-  final String name;
-  FieldExpr(this.target, this.name, TokenData td) : super(td);
+  final Expr collection;
+  final String fieldName;
+  FieldExpr(this.collection, this.fieldName, TokenData td) : super(td);
 }
 
 class FuncDefExpr extends Expr {
@@ -204,14 +212,20 @@ class UnOpExpr extends Expr {
   UnOpExpr(this.op, this.right, TokenData td) : super(td);
 }
 
-class ObjectExpr extends Expr {
+class MapExpr extends Expr {
   final Map<String, Expr> fields;
-  ObjectExpr(this.fields, TokenData td) : super(td);
+  MapExpr(this.fields, TokenData td) : super(td);
 }
 
 class ArrayExpr extends Expr {
   final List<Expr> items;
   ArrayExpr(this.items, TokenData td) : super(td);
+}
+
+class ErrorExpr extends Expr {
+  final int code;
+  final List<Expr> args;
+  ErrorExpr(this.code, this.args, TokenData td) : super(td);
 }
 
 class FlowControlExpr extends Expr {
@@ -266,6 +280,7 @@ enum HankError {
   Halt, // 4004
   BitwiseOutOfBounds, // 4005
   GenericRuntimeError, // 4006
+  TypeMismatch, // 4007
 }
 
 class HankErrorValue implements Exception {

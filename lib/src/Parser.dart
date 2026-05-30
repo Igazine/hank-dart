@@ -185,14 +185,10 @@ class Parser {
         }
         break;
       case TokenType.LBracket:
-        expr = _parseArrayLiteral();
+        expr = _parseCollectionLiteral();
         break;
       case TokenType.LBrace:
-        if (_isObjectLiteral()) {
-          expr = _parseObjectLiteral();
-        } else {
-          expr = _parseBlock();
-        }
+        expr = _parseBlock();
         break;
       case TokenType.Caret:
         expr = _parseReturn();
@@ -284,46 +280,73 @@ class Parser {
     return BlockExpr(stmts, td);
   }
 
-  bool _isObjectLiteral() {
-    int p = pos + 1;
-    while (p < tokens.length && tokens[p].type == TokenType.Newline) p++;
-    if (p >= tokens.length) return false;
-    if (tokens[p].type == TokenType.RBrace) return true;
-    if (tokens[p].type == TokenType.Identifier) {
-       int next = p + 1;
-       while (next < tokens.length && tokens[next].type == TokenType.Newline) next++;
-       return next < tokens.length && tokens[next].type == TokenType.Colon;
-    }
-    return false;
-  }
+  Expr _parseCollectionLiteral() {
+    TokenData td = _consume(TokenType.LBracket);
+    _skipNewlines();
 
-  Expr _parseObjectLiteral() {
-    TokenData td = _consume(TokenType.LBrace);
-    Map<String, Expr> fields = {};
-    while (_peek().type != TokenType.RBrace && !_isEof()) {
-      _skipNewlines();
-      if (_peek().type == TokenType.RBrace) break;
-      String key = _consumeIdentifier();
+    // 1. Handle [:]
+    if (_peek().type == TokenType.Colon) {
+      _consume(TokenType.Colon);
+      _consume(TokenType.RBracket);
+      return MapExpr({}, td);
+    }
+
+    // 2. Handle []
+    if (_peek().type == TokenType.RBracket) {
+      _consume(TokenType.RBracket);
+      return ArrayExpr([], td);
+    }
+
+    // 3. Parse first element
+    Expr first = _parseExpression();
+    _skipNewlines();
+
+    if (_peek().type == TokenType.Colon) {
+      // This is a Map
       _consume(TokenType.Colon);
       Expr val = _parseExpression();
-      fields[key] = val;
-      if (_peek().type == TokenType.Comma) _consume(TokenType.Comma);
+      Map<String, Expr> fields = {};
+      fields[_getStaticKey(first)] = val;
+
+      while (true) {
+        _skipNewlines();
+        if (_peek().type == TokenType.Comma) {
+          _consume(TokenType.Comma);
+          _skipNewlines();
+          if (_peek().type == TokenType.RBracket) break;
+          Expr keyExpr = _parseExpression();
+          _consume(TokenType.Colon);
+          Expr valExpr = _parseExpression();
+          fields[_getStaticKey(keyExpr)] = valExpr;
+        } else {
+          break;
+        }
+      }
+      _consume(TokenType.RBracket);
+      return MapExpr(fields, td);
+    } else {
+      // This is an Array
+      List<Expr> items = [first];
+      while (true) {
+        _skipNewlines();
+        if (_peek().type == TokenType.Comma) {
+          _consume(TokenType.Comma);
+          _skipNewlines();
+          if (_peek().type == TokenType.RBracket) break;
+          items.add(_parseExpression());
+        } else {
+          break;
+        }
+      }
+      _consume(TokenType.RBracket);
+      return ArrayExpr(items, td);
     }
-    _consume(TokenType.RBrace);
-    return ObjectExpr(fields, td);
   }
 
-  Expr _parseArrayLiteral() {
-    TokenData td = _consume(TokenType.LBracket);
-    List<Expr> items = [];
-    while (_peek().type != TokenType.RBracket && !_isEof()) {
-      _skipNewlines();
-      if (_peek().type == TokenType.RBracket) break;
-      items.add(_parseExpression());
-      if (_peek().type == TokenType.Comma) _consume(TokenType.Comma);
-    }
-    _consume(TokenType.RBracket);
-    return ArrayExpr(items, td);
+  String _getStaticKey(Expr e) {
+    if (e is LiteralExpr && e.value.type == ValueType.String) return e.value.value;
+    if (e is IdentExpr && !e.isCore) return e.name;
+    throw _error(HankError.ExpectedIdentifier, [_peek().type]);
   }
 
   List<Expr> _parseArgList() {

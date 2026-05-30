@@ -24,6 +24,7 @@ class HankErrorRegistry {
     HankError.Halt: "HANK_HALT:{0}",
     HankError.BitwiseOutOfBounds: "Value exceeds safe integer bounds for bitwise operation: {0}",
     HankError.GenericRuntimeError: "{0}",
+    HankError.TypeMismatch: "Type Mismatch: Expected {0}, got {1} in {2}",
   };
 
   static HankErrorValue create(HankError code, [List<dynamic>? args, String? filename, int? line, String? lineText]) {
