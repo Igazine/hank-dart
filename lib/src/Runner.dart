@@ -13,8 +13,9 @@ class Runner {
   final Map<String, Resource> resourceCache = {};
   final Scope coreScope = HankScope();
   final Map<int, String> localization = {};
+  final int maxInstructions;
 
-  Runner();
+  Runner({this.maxInstructions = 0});
 
   /**
    * Registers a localization map (Code -> Template).
@@ -132,7 +133,7 @@ class Runner {
     try {
       Expr ast = await load(resource);
 
-      var interpreter = Interpreter(null, coreScope, localization);
+      var interpreter = Interpreter(null, coreScope, localization: localization, maxInstructions: maxInstructions);
       Value scriptRes = interpreter.run(ast);
 
       if (scriptRes.type == ValueType.Task) {

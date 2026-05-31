@@ -21,9 +21,11 @@ class Interpreter implements ExecutionContext {
   late Scope globalScope;
   final Scope coreScope;
   final Map<int, String> localization;
+  final int maxInstructions;
+  int instructionCount = 0;
   int _depth = 0;
 
-  Interpreter(this.parentScope, this.coreScope, [this.localization = const {}]) {
+  Interpreter(this.parentScope, this.coreScope, {this.localization = const {}, this.maxInstructions = 0}) {
     globalScope = HankScope(parent: parentScope ?? coreScope);
   }
 
@@ -61,6 +63,13 @@ class Interpreter implements ExecutionContext {
   Map<int, String> getLocalization() => localization;
 
   EvalResult _evalInScope(Expr node, Scope scope) {
+    if (maxInstructions > 0) {
+      instructionCount++;
+      if (instructionCount > maxInstructions) {
+        return EvalResult(type: EvalResultType.Error, value: Value(type: ValueType.Error, code: 4008, args: [Value.number(maxInstructions.toDouble())]));
+      }
+    }
+
     const int maxDepth = 500;
     if (_depth > maxDepth) {
       return EvalResult(type: EvalResultType.Error, value: Value(type: ValueType.Error, code: 4006, args: [Value.string("Stack overflow")]));
@@ -258,8 +267,9 @@ class Interpreter implements ExecutionContext {
         return EvalResult(type: EvalResultType.Error, value: Value(type: ValueType.Error, code: 4006, args: [Value.string(e.toString())]));
       }
     } else {
+      List<Value> finalArgs = args;
       if (args.length > t.params!.length) {
-        return EvalResult(type: EvalResultType.Error, value: Value(type: ValueType.Error, code: 4002, args: []));
+        finalArgs = args.sublist(0, t.params!.length);
       }
 
       _depth++;
@@ -269,8 +279,8 @@ class Interpreter implements ExecutionContext {
       for (int i = 0; i < params.length; i++) {
         Param p = params[i];
         Value val = Value.voidVal();
-        if (i < args.length) {
-          val = args[i];
+        if (i < finalArgs.length) {
+          val = finalArgs[i];
         } else if (p.defaultValue != null) {
           var pRes = _evalInScope(p.defaultValue!, callScope);
           if (pRes.type != EvalResultType.Value) return pRes;

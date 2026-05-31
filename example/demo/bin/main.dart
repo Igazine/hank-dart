@@ -45,8 +45,8 @@ void main(List<String> args) async {
   }
 }
 
-Runner createRunner() {
-  var runner = Runner();
+Runner createRunner({int maxInstructions = 0}) {
+  var runner = Runner(maxInstructions: maxInstructions);
 
   // 0. Localization
   runner.registerLocalization({
@@ -54,6 +54,7 @@ Runner createRunner() {
     4002: "Too many arguments",
     4007: "Type Mismatch: Expected {0}, got {1} in {2}",
     4005: "Value exceeds safe integer bounds: {0} in {1}",
+    4008: "Instruction Limit Exceeded: Script reached the maximum allowed AST evaluations ({0})",
   });
 
   // 1. Register StdLib (Pure)
@@ -87,11 +88,13 @@ Future<void> runConformance(String workspaceRoot) async {
     'test/conformance/18_runtime_module.hank',
     'test/conformance/19_error_handling.hank',
     'test/conformance/20_grammar_hardening.hank',
+    'test/conformance/21_data_functional.hank',
+    'test/conformance/22_instruction_limit.hank',
   ];
 
   for (var t in tests) {
     print('--- Running: $t ---');
-    var runner = createRunner();
+    var runner = createRunner(maxInstructions: t.contains('22_instruction_limit') ? 1000 : 0);
     String fullPath = p.join(workspaceRoot, t);
     var resource = FileResource.create(fullPath);
     List<Value> args = t.endsWith('08_host_args.hank') ? [Value.string('Tamas')] : [];

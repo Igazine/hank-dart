@@ -275,6 +275,7 @@ enum HankError {
   BitwiseOutOfBounds, // 4005
   GenericRuntimeError, // 4006
   TypeMismatch, // 4007
+  InstructionLimitExceeded, // 4008
 }
 
 class HankErrorValue implements Exception {

@@ -1,11 +1,11 @@
 {
   "roots": [
-    "hal"
+    "hank"
   ],
   "packages": [
     {
-      "name": "hal",
-      "version": "1.0.0",
+      "name": "hank",
+      "version": "1.3.0",
       "dependencies": [
         "path"
       ],

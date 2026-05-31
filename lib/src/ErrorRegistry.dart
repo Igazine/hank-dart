@@ -25,6 +25,7 @@ class HankErrorRegistry {
     HankError.BitwiseOutOfBounds: "Value exceeds safe integer bounds for bitwise operation: {0}",
     HankError.GenericRuntimeError: "{0}",
     HankError.TypeMismatch: "Type Mismatch: Expected {0}, got {1} in {2}",
+    HankError.InstructionLimitExceeded: "Instruction Limit Exceeded: Script reached the maximum allowed AST evaluations ({0})",
   };
 
   static HankErrorValue create(HankError code, [List<dynamic>? args, String? filename, int? line, int? column, String? lineText]) {

@@ -49,17 +49,6 @@ class StdLib implements HankExtension {
       return Value.voidVal();
     }
 
-    bool hasOpaque(Value v) {
-      if (v.type == ValueType.Opaque) return true;
-      if (v.type == ValueType.Array) {
-        return (v.value as List<Value>).any(hasOpaque);
-      }
-      if (v.type == ValueType.Map) {
-        return (v.value as Map<String, Value>).values.any(hasOpaque);
-      }
-      return false;
-    }
-
     dynamic mapHankToAny(Value v) {
       switch (v.type) {
         case ValueType.Number: return v.value as double;
@@ -100,9 +89,12 @@ class StdLib implements HankExtension {
         case ValueType.Opaque:
           return a.label == b.label && a.value == b.value;
         case ValueType.Error:
-          if (a.code != b.code || a.args?.length != b.args?.length) return false;
-          for (int i = 0; i < (a.args?.length ?? 0); i++) {
-            if (!hankEquals(a.args![i], b.args![i])) return false;
+          if (a.code != b.code) return false;
+          List<Value> args1 = a.args ?? [];
+          List<Value> args2 = b.args ?? [];
+          if (args1.length != args2.length) return false;
+          for (int i = 0; i < args1.length; i++) {
+            if (!hankEquals(args1[i], args2[i])) return false;
           }
           return true;
         default: return false;
@@ -248,6 +240,15 @@ class StdLib implements HankExtension {
         if (args[1].value == 0) return Value.voidVal();
         return Value.number((args[0].value as double) / (args[1].value as double));
       },
+      'math_mod': (args, ctx) {
+        if (args.length < 2) return Value.voidVal();
+        if (args[0].type != ValueType.Number || args[1].type != ValueType.Number) {
+          Value faulty = args[0].type != ValueType.Number ? args[0] : args[1];
+          return Value(type: ValueType.Error, code: 4007, args: [Value.string("Number"), Value.string(typeToString(faulty.type)), Value.string("math_mod")]);
+        }
+        if (args[1].value == 0) return Value.voidVal();
+        return Value.number((args[0].value as double) % (args[1].value as double));
+      },
       'math_gt': (args, ctx) {
         if (args.length < 2) return Value.voidVal();
         if (args[0].type != ValueType.Number || args[1].type != ValueType.Number) {
@@ -283,6 +284,15 @@ class StdLib implements HankExtension {
       },
       'logic_eq': (args, ctx) => (args.length < 2) ? Value.voidVal() : (hankEquals(args[0], args[1]) ? Value.number(1.0) : Value.voidVal()),
 
+      'type_isVoid': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Void) ? Value.number(1.0) : Value.voidVal(),
+      'type_isNumber': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Number) ? Value.number(1.0) : Value.voidVal(),
+      'type_isString': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.String) ? Value.number(1.0) : Value.voidVal(),
+      'type_isArray': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Array) ? Value.number(1.0) : Value.voidVal(),
+      'type_isMap': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Map) ? Value.number(1.0) : Value.voidVal(),
+      'type_isOpaque': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Opaque) ? Value.number(1.0) : Value.voidVal(),
+      'type_isTask': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Task) ? Value.number(1.0) : Value.voidVal(),
+      'type_isError': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Error) ? Value.number(1.0) : Value.voidVal(),
+
       'arr_length': (args, ctx) {
         if (args.isEmpty) return Value.voidVal();
         if (args[0].type != ValueType.Array) {
@@ -312,6 +322,50 @@ class StdLib implements HankExtension {
          if (l.isNotEmpty) return l.removeLast();
          return Value.voidVal();
       },
+      'arr_shift': (args, ctx) {
+         if (args.isEmpty) return Value.voidVal();
+         if (args[0].type != ValueType.Array) return Value(type: ValueType.Error, code: 4007, args: [Value.string("Array"), Value.string(typeToString(args[0].type)), Value.string("arr_shift")]);
+         List<Value> l = args[0].value;
+         if (l.isNotEmpty) return l.removeAt(0);
+         return Value.voidVal();
+      },
+      'arr_unshift': (args, ctx) {
+         if (args.length < 2) return Value.voidVal();
+         if (args[0].type != ValueType.Array) return Value(type: ValueType.Error, code: 4007, args: [Value.string("Array"), Value.string(typeToString(args[0].type)), Value.string("arr_unshift")]);
+         (args[0].value as List<Value>).insert(0, args[1]);
+         return Value.voidVal();
+      },
+      'arr_slice': (args, ctx) {
+         if (args.length < 2) return Value.voidVal();
+         if (args[0].type != ValueType.Array) return Value(type: ValueType.Error, code: 4007, args: [Value.string("Array"), Value.string(typeToString(args[0].type)), Value.string("arr_slice")]);
+         List<Value> l = args[0].value;
+         int start = (args[1].value as double).toInt();
+         int end = args.length > 2 ? (args[2].value as double).toInt() : l.length;
+         return Value(type: ValueType.Array, value: l.sublist(start, end));
+      },
+      'arr_sort': (args, ctx) {
+         if (args.isEmpty || args[0].type != ValueType.Array) return Value.voidVal();
+         List<Value> l = args[0].value;
+         if (args.length > 1 && args[1].type == ValueType.Task) {
+           Value task = args[1];
+           l.sort((a, b) {
+             Value res = ctx.call(task, [a, b]);
+             return res.type == ValueType.Number ? (res.value as double).toInt() : 0;
+           });
+         } else {
+           l.sort((a, b) => valToString(a).compareTo(valToString(b)));
+         }
+         return Value.voidVal();
+      },
+      'arr_indexof': (args, ctx) {
+         if (args.length < 2 || args[0].type != ValueType.Array) return Value.voidVal();
+         List<Value> l = args[0].value;
+         Value target = args[1];
+         for (int i = 0; i < l.length; i++) {
+           if (hankEquals(l[i], target)) return Value.number(i.toDouble());
+         }
+         return Value.voidVal();
+      },
       'arr_each': (args, ctx) {
          if (args.length < 2) return Value.voidVal();
          if (args[0].type != ValueType.Array) return Value(type: ValueType.Error, code: 4007, args: [Value.string("Array"), Value.string(typeToString(args[0].type)), Value.string("arr_each")]);
@@ -322,6 +376,30 @@ class StdLib implements HankExtension {
            if (ctx.isError(res)) return res;
          }
          return Value.voidVal();
+      },
+      'arr_map': (args, ctx) {
+         if (args.length < 2 || args[0].type != ValueType.Array) return Value(type: ValueType.Error, code: 4007, args: [Value.string("Array"), Value.string(typeToString(args[0].type)), Value.string("arr_map")]);
+         List<Value> l = args[0].value;
+         Value task = args[1];
+         List<Value> res = [];
+         for (int i = 0; i < l.length; i++) {
+           Value val = ctx.call(task, [l[i], Value.number(i.toDouble())]);
+           if (ctx.isError(val)) return val;
+           res.add(val);
+         }
+         return Value(type: ValueType.Array, value: res);
+      },
+      'arr_filter': (args, ctx) {
+         if (args.length < 2 || args[0].type != ValueType.Array) return Value(type: ValueType.Error, code: 4007, args: [Value.string("Array"), Value.string(typeToString(args[0].type)), Value.string("arr_filter")]);
+         List<Value> l = args[0].value;
+         Value task = args[1];
+         List<Value> res = [];
+         for (int i = 0; i < l.length; i++) {
+           Value val = ctx.call(task, [l[i], Value.number(i.toDouble())]);
+           if (ctx.isError(val)) return val;
+           if (val.type != ValueType.Void) res.add(l[i]);
+         }
+         return Value(type: ValueType.Array, value: res);
       },
 
       'map_get': (args, ctx) {
@@ -337,8 +415,18 @@ class StdLib implements HankExtension {
         (args[0].value as Map<String, Value>)[valToString(args[1])] = args[2];
         return Value.voidVal();
       },
+      'map_remove': (args, ctx) {
+        if (args.length < 2 || args[0].type != ValueType.Map) return Value.voidVal();
+        Map<String, Value> m = args[0].value;
+        String key = valToString(args[1]);
+        if (m.containsKey(key)) {
+          m.remove(key);
+          return Value.number(1.0);
+        }
+        return Value.voidVal();
+      },
       'map_keys': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Map) ? Value(type: ValueType.Array, value: (args[0].value as Map<String, Value>).keys.map((k) => Value.string(k)).toList()) : Value.voidVal(),
-
+      
       'json_parse': (args, ctx) {
         if (args.isEmpty) return Value.voidVal();
         try {
@@ -349,7 +437,6 @@ class StdLib implements HankExtension {
       },
       'json_stringify': (args, ctx) {
         if (args.isEmpty) return Value.voidVal();
-        if (hasOpaque(args[0])) return Value.voidVal();
         try {
           return Value.string(jsonEncode(mapHankToAny(args[0])));
         } catch (e) {
@@ -378,7 +465,6 @@ class StdLib implements HankExtension {
          if (args[0].type != ValueType.Error) return Value(type: ValueType.Error, code: 4007, args: [Value.string("Error"), Value.string(typeToString(args[0].type)), Value.string("err_args")]);
          return Value(type: ValueType.Array, value: args[0].args ?? []);
       },
-      'err_isError': (args, ctx) => (args.isNotEmpty && args[0].type == ValueType.Error) ? Value.number(1.0) : Value.voidVal(),
 
       'regex_parse': (args, ctx) {
         if (args.isEmpty) return Value.voidVal();
