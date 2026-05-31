@@ -6,6 +6,8 @@ class StdLib implements HankExtension {
   @override
   String get name => "StdLib";
 
+  final Map<String, Value> envState = {};
+
   /**
    * Returns the recommended standard library modules.
    * Developers should register these manually on their Runner.
@@ -142,9 +144,16 @@ class StdLib implements HankExtension {
       },
       'loop_break': (args, ctx) => Value(type: ValueType.Opaque, label: '__ControlFlow', value: 'Break'),
 
-      'env_get': (args, ctx) => Value.voidVal(),
-      'env_set': (args, ctx) => Value.voidVal(),
-      'env_keys': (args, ctx) => Value(type: ValueType.Array, value: <Value>[]),
+      'env_get': (args, ctx) {
+        if (args.isEmpty) return Value.voidVal();
+        return envState[valToString(args[0])] ?? Value.voidVal();
+      },
+      'env_set': (args, ctx) {
+        if (args.length < 2) return Value.voidVal();
+        envState[valToString(args[0])] = args[1];
+        return Value.voidVal();
+      },
+      'env_keys': (args, ctx) => Value(type: ValueType.Array, value: envState.keys.map((k) => Value.string(k)).toList()),
 
       'str_length': (args, ctx) {
         if (args.isEmpty) return Value.voidVal();
