@@ -195,7 +195,13 @@ class Parser {
         expr = _parseCollectionLiteral();
         break;
       case TokenType.LBrace:
-        expr = _parseBlock();
+        // Ambiguity Protection: Standalone {} blocks are not allowed in v1.5.0.
+        // They must be part of a task/function definition.
+        if (_isFuncDefStart()) {
+          expr = _parseFuncDef();
+        } else {
+          throw _error(HankError.UnexpectedToken, [t.type, t.literal]);
+        }
         break;
       case TokenType.Caret:
         expr = _parseReturn();
@@ -218,10 +224,6 @@ class Parser {
       Token t = _peek();
       if (t.type == TokenType.LParen) {
         expr = FuncCallExpr(expr, _parseArgList(), t.td);
-      } else if (t.type == TokenType.Dot) {
-        _consume(TokenType.Dot);
-        String name = _consumeIdentifier();
-        expr = FieldExpr(expr, name, t.td);
       } else {
         break;
       }
@@ -429,6 +431,6 @@ class Parser {
 
   Exception _error(HankError code, [List<dynamic>? args]) {
     TokenData td = _peek().td;
-    return HankErrorRegistry.create(code, args, filename, td.line, td.lineText);
+    return HankErrorRegistry.create(code, args, filename, td.line, td.column, td.lineText);
   }
 }

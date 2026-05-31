@@ -22,6 +22,15 @@ void main(List<String> args) async {
     String scriptPath = p.isAbsolute(args[0]) ? args[0] : p.join(current.path, args[0]);
     var resource = FileResource.create(scriptPath);
     Value res = await runner.run(resource, hankArgs);
+    if (res.type == ValueType.Error) {
+       var loc = runner.localization;
+       String tmpl = loc[res.code] ?? "Unknown Error";
+       for (int i = 0; i < (res.args?.length ?? 0); i++) {
+         tmpl = tmpl.replaceAll('{$i}', res.args![i].toString());
+       }
+       print('Runtime Error ${res.code}: $tmpl');
+       exit(1);
+    }
     if (res.type == ValueType.Number) {
       exit((res.value as double).toInt());
     }
@@ -42,6 +51,7 @@ Runner createRunner() {
   // 0. Localization
   runner.registerLocalization({
     4001: "Target is not a function: {0}",
+    4002: "Too many arguments",
     4007: "Type Mismatch: Expected {0}, got {1} in {2}",
     4005: "Value exceeds safe integer bounds: {0} in {1}",
   });
@@ -71,7 +81,6 @@ Future<void> runConformance(String workspaceRoot) async {
     'test/conformance/11_regex_parse.hank',
     'test/conformance/12_data_advanced.hank',
     'test/conformance/13_logic_module.hank',
-    // 'test/conformance/14_syslib_hank.hank', // MOVED to extensions
     'test/conformance/15_logic_eq.hank',
     'test/conformance/16_chained_assign.hank',
     'test/conformance/17_num_module.hank',
@@ -86,7 +95,15 @@ Future<void> runConformance(String workspaceRoot) async {
     var resource = FileResource.create(fullPath);
     List<Value> args = t.endsWith('08_host_args.hank') ? [Value.string('Tamas')] : [];
     try {
-      await runner.run(resource, args);
+      Value hres = await runner.run(resource, args);
+      if (hres.type == ValueType.Error) {
+         var loc = runner.localization;
+         String tmpl = loc[hres.code] ?? "Unknown Error";
+         for (int i = 0; i < (hres.args?.length ?? 0); i++) {
+           tmpl = tmpl.replaceAll('{$i}', hres.args![i].toString());
+         }
+         print('Test Runtime Error ${hres.code}: $tmpl');
+      }
     } catch (e) {
       print('Test Failed: $e');
     }
@@ -105,7 +122,15 @@ Future<void> runConformance(String workspaceRoot) async {
     String fullPath = p.join(workspaceRoot, t);
     var resource = FileResource.create(fullPath);
     try {
-      await runner.run(resource, []);
+      Value eres = await runner.run(resource, []);
+      if (eres.type == ValueType.Error) {
+         var loc = runner.localization;
+         String tmpl = loc[eres.code] ?? "Unknown Error";
+         for (int i = 0; i < (eres.args?.length ?? 0); i++) {
+           tmpl = tmpl.replaceAll('{$i}', eres.args![i].toString());
+         }
+         print('Extension Runtime Error ${eres.code}: $tmpl');
+      }
     } catch (e) {
       print('Extension Test Failed: $e');
     }

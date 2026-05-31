@@ -24,31 +24,26 @@ class Runner {
   }
 
   /**
-   * Registers a set of native tasks under a module name.
+   * Registers a set of native tasks directly into core scope.
    */
-  void registerModule(String name, Map<String, NativeFunc> tasks) {
-    Map<String, Value> moduleObj = {};
+  void registerModule(Map<String, NativeFunc> tasks) {
     tasks.forEach((tName, func) {
-      moduleObj[tName] = Value(
+      coreScope.set(tName, Value(
         type: ValueType.Task,
         task: TaskValue(
           isNative: true,
-          name: '$name.$tName',
+          name: tName,
           native: func,
         ),
-      );
+      ));
     });
-    coreScope.set(name, Value(type: ValueType.Map, value: moduleObj));
   }
 
   /**
-   * Registers a Hank Extension and all its modules.
+   * Registers a Hank Extension and all its tasks.
    */
   void registerExtension(HankExtension ext) {
-    var mods = ext.getModules();
-    mods.forEach((name, tasks) {
-      registerModule(name, tasks);
-    });
+    registerModule(ext.getTasks());
   }
 
   /**
@@ -134,17 +129,23 @@ class Runner {
    * Executes a Hank Resource.
    */
   Future<Value> run(Resource resource, [List<Value> args = const []]) async {
-    Expr ast = await load(resource);
+    try {
+      Expr ast = await load(resource);
 
-    var interpreter = Interpreter(null, coreScope, localization);
-    Value scriptRes = interpreter.run(ast);
+      var interpreter = Interpreter(null, coreScope, localization);
+      Value scriptRes = interpreter.run(ast);
 
-    if (scriptRes.type == ValueType.Task) {
-      return interpreter.call(scriptRes, args);
-    } else if (scriptRes.type == ValueType.Error) {
-      return scriptRes;
+      if (scriptRes.type == ValueType.Task) {
+        return interpreter.call(scriptRes, args);
+      } else if (scriptRes.type == ValueType.Error) {
+        return scriptRes;
+      }
+
+      throw HankErrorRegistry.create(HankError.ScriptMustBeTask);
+    } on HankErrorValue catch (e) {
+      return Value(type: ValueType.Error, code: e.code.index + 1000, args: [Value.string(e.message)]);
+    } catch (e) {
+      return Value(type: ValueType.Error, code: 4006, args: [Value.string(e.toString())]);
     }
-
-    throw HankErrorRegistry.create(HankError.ScriptMustBeTask);
   }
 }

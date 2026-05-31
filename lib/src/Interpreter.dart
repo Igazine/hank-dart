@@ -158,22 +158,6 @@ class Interpreter implements ExecutionContext {
       return _callInternal(target, args, scope);
     }
 
-    if (node is FieldExpr) {
-      EvalResult cRes = _evalInScope(node.collection, scope);
-      if (cRes.type != EvalResultType.Value) return cRes;
-      Value target = cRes.value;
-
-      if (target.type == ValueType.Map) {
-        Map<String, Value> map = target.value;
-        return EvalResult(type: EvalResultType.Value, value: map[node.fieldName] ?? Value.voidVal());
-      } else if (target.type == ValueType.Array && node.fieldName == 'length') {
-        return EvalResult(type: EvalResultType.Value, value: Value.number((target.value as List).length.toDouble()));
-      } else if (target.type == ValueType.String && node.fieldName == 'length') {
-        return EvalResult(type: EvalResultType.Value, value: Value.number(target.value.toString().length.toDouble()));
-      }
-      return EvalResult(type: EvalResultType.Value, value: Value.voidVal());
-    }
-
     if (node is MapExpr) {
       Map<String, Value> fields = {};
       for (var entry in node.fields.entries) {

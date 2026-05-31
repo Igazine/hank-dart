@@ -121,11 +121,12 @@ abstract class Resource {
 
 class TokenData {
   final int line;
+  final int column;
   final String lineText;
 
-  TokenData({required this.line, required this.lineText});
+  TokenData({required this.line, required this.column, required this.lineText});
 
-  factory TokenData.empty() => TokenData(line: 0, lineText: '');
+  factory TokenData.empty() => TokenData(line: 0, column: 0, lineText: '');
 }
 
 enum TokenType {
@@ -140,7 +141,6 @@ enum TokenType {
   Hash,       // # 8
   Not,        // ! 9
   Caret,      // ^ 10
-  Dot,        // . 11
   Comma,      // , 12
   LParen,     // ( 13
   RParen,     // ) 14
@@ -186,12 +186,6 @@ class IdentExpr extends Expr {
   final String name;
   final bool isCore;
   IdentExpr(this.name, this.isCore, TokenData td) : super(td);
-}
-
-class FieldExpr extends Expr {
-  final Expr collection;
-  final String fieldName;
-  FieldExpr(this.collection, this.fieldName, TokenData td) : super(td);
 }
 
 class FuncDefExpr extends Expr {
@@ -250,7 +244,7 @@ abstract class IHankSerializable {
 
 abstract class HankExtension {
   String get name;
-  Map<String, Map<String, NativeFunc>> getModules();
+  Map<String, NativeFunc> getTasks();
 }
 
 enum HankError {
@@ -286,8 +280,12 @@ enum HankError {
 class HankErrorValue implements Exception {
   final HankError code;
   final String message;
+  final String? filename;
+  final int? line;
+  final int? column;
+  final String? lineText;
 
-  HankErrorValue(this.code, this.message);
+  HankErrorValue(this.code, this.message, {this.filename, this.line, this.column, this.lineText});
 
   @override
   String toString() => message;

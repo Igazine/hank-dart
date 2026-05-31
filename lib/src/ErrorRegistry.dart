@@ -27,7 +27,7 @@ class HankErrorRegistry {
     HankError.TypeMismatch: "Type Mismatch: Expected {0}, got {1} in {2}",
   };
 
-  static HankErrorValue create(HankError code, [List<dynamic>? args, String? filename, int? line, String? lineText]) {
+  static HankErrorValue create(HankError code, [List<dynamic>? args, String? filename, int? line, int? column, String? lineText]) {
     String tmpl = messages[code] ?? "Unknown Error";
 
     if (args != null) {
@@ -36,10 +36,18 @@ class HankErrorRegistry {
       }
     }
 
-    if (filename != null && line != null && lineText != null) {
-      tmpl = 'ERROR: $tmpl in $filename at\n\t$line:\t$lineText';
+    String fullMsg = tmpl;
+    if (filename != null && line != null && lineText != null && column != null) {
+      String pointer = '';
+      for (int i = 1; i < column; i++) {
+        pointer += (lineText.length >= i && lineText[i-1] == '\t') ? '\t' : ' ';
+      }
+      pointer += '^';
+      fullMsg = 'ERROR: $tmpl in $filename at\n\t$line:\t$lineText\n\t\t$pointer';
+    } else if (filename != null && line != null && lineText != null) {
+      fullMsg = 'ERROR: $tmpl in $filename at\n\t$line:\t$lineText';
     }
 
-    return HankErrorValue(code, tmpl);
+    return HankErrorValue(code, fullMsg, filename: filename, line: line, column: column, lineText: lineText);
   }
 }

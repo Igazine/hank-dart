@@ -5,6 +5,7 @@ class Lexer {
   final String source;
   int pos = 0;
   int line = 1;
+  int lineStart = 0;
   String lineText = '';
 
   Lexer(this.source) {
@@ -34,6 +35,7 @@ class Lexer {
           tokens.add(Token(TokenType.Newline, '\n', _td()));
           line++;
           pos++;
+          lineStart = pos;
           _updateLineText();
         } else {
           pos++;
@@ -80,7 +82,6 @@ class Lexer {
         case '#': tokens.add(Token(TokenType.Hash, '#', _td())); break;
         case '!': tokens.add(Token(TokenType.Not, '!', _td())); break;
         case '^': tokens.add(Token(TokenType.Caret, '^', _td())); break;
-        case '.': tokens.add(Token(TokenType.Dot, '.', _td())); break;
         case ',': tokens.add(Token(TokenType.Comma, ',', _td())); break;
         case '(': tokens.add(Token(TokenType.LParen, '(', _td())); break;
         case ')': tokens.add(Token(TokenType.RParen, ')', _td())); break;
@@ -99,11 +100,39 @@ class Lexer {
 
   Token _readNumber() {
     int start = pos;
+    int dotCount = 0;
     if (source[pos] == '-') pos++;
-    while (pos < source.length && (RegExp(r'[0-9]').hasMatch(source[pos]) || source[pos] == '.')) {
-      pos++;
+    
+    while (pos < source.length) {
+      String c = source[pos];
+      if (_isDigit(c)) {
+        pos++;
+      } else if (c == '.') {
+        if (dotCount > 0) break;
+        // Check if next is digit, if not, it's a trailing dot
+        if (pos + 1 < source.length && _isDigit(source[pos + 1])) {
+          dotCount++;
+          pos++;
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
     }
-    return Token(TokenType.Number, source.substring(start, pos), _td());
+
+    String lit = source.substring(start, pos);
+    
+    // Harden: check for illegal identifier suffix
+    if (pos < source.length && (_isAlpha(source[pos]) || source[pos] == '_')) {
+       TokenData td = _td();
+       pos++;
+       while (pos < source.length && (_isAlpha(source[pos]) || _isDigit(source[pos]) || source[pos] == '_')) pos++;
+       String fullLit = source.substring(start, pos);
+       return Token(TokenType.Error, HankErrorRegistry.create(HankError.UnexpectedCharacter, [fullLit]).message, td);
+    }
+
+    return Token(TokenType.Number, lit, _td());
   }
 
   Token _readIdentifier() {
@@ -117,20 +146,25 @@ class Lexer {
 
   Token _readString(String quote) {
     int start = pos;
+    TokenData td = _td();
     pos++;
     while (pos < source.length) {
       if (source[pos] == quote) {
         if (source[pos - 1] != '\\') {
           pos++;
-          return Token(TokenType.String, source.substring(start, pos), _td());
+          return Token(TokenType.String, source.substring(start, pos), td);
         }
+      }
+      if (source[pos] == '\n') {
+        line++;
+        _updateLineText();
       }
       pos++;
     }
-    return Token(TokenType.Error, HankErrorRegistry.create(HankError.UnclosedStringLiteral).message, _td());
+    return Token(TokenType.Error, HankErrorRegistry.create(HankError.UnclosedStringLiteral).message, td);
   }
 
-  TokenData _td() => TokenData(line: line, lineText: lineText);
+  TokenData _td() => TokenData(line: line, column: pos - lineStart + 1, lineText: lineText);
 
   bool _isWhitespace(String c) => c == ' ' || c == '\t' || c == '\n' || c == '\r';
   bool _isDigit(String c) => RegExp(r'[0-9]').hasMatch(c);
